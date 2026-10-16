@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0a12">
+  <title>Untitled — Social Deduction</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="Home">
+      <span class="brand-mark">✦</span><span id="game-name">UNTITLED</span>
+    </a>
+    <div class="topbar-right"><span class="status-dot"></span><span>EARLY BUILD</span></div>
+  </header>
+
+  <main class="shell">
+    <section class="hero">
+      <p class="eyebrow">A SOCIAL DEDUCTION GAME</p>
+      <h1>Trust is a <span>limited resource.</span></h1>
+      <p class="hero-copy">Gather your people. Enter the room. Figure out who is lying before the night is over.</p>
+    </section>
+
+    <section class="workspace" aria-label="Game lobby">
+      <div class="panel action-panel">
+        <div class="panel-heading">
+          <div><p class="eyebrow">START A SESSION</p><h2>Make the room</h2></div>
+          <span class="step-number">01</span>
+        </div>
+        <label for="create-name">Your player name</label>
+        <input id="create-name" maxlength="18" autocomplete="nickname" placeholder="e.g. Raven" />
+        <button id="create-room" class="button button-primary" type="button">
+          <span>Create private room</span><span aria-hidden="true">↗</span>
+        </button>
+        <p class="microcopy">You'll get a room code to share with your friends.</p>
+      </div>
+
+      <div class="panel action-panel join-panel">
+        <div class="panel-heading">
+          <div><p class="eyebrow">JOIN YOUR CREW</p><h2>Enter a room</h2></div>
+          <span class="step-number">02</span>
+        </div>
+        <label for="join-name">Your player name</label>
+        <input id="join-name" maxlength="18" autocomplete="nickname" placeholder="e.g. NightOwl" />
+        <label for="room-code">Private room code</label>
+        <input id="room-code" maxlength="8" autocapitalize="characters" spellcheck="false" placeholder="AB12CD" class="code-input" />
+        <button id="join-room" class="button button-secondary" type="button">
+          <span>Join room</span><span aria-hidden="true">→</span>
+        </button>
+        <p class="microcopy">Only people with the code can find your room.</p>
+      </div>
+    </section>
+
+
+    <section class="panel test-panel" aria-label="Temporary testing mode">
+      <div class="test-panel-copy">
+        <p class="eyebrow">DEVELOPER TOOL · TEMPORARY</p>
+        <h2>Test with 5 players</h2>
+        <p class="test-copy">Creates five separate anonymous Supabase sessions in this browser, starts a private room, and lets you switch between the test players. No passwords or email addresses are needed. This is for testing only.</p>
+      </div>
+      <button id="launch-test-mode" class="button button-secondary" type="button"><span>Launch 5-player test</span><span aria-hidden="true">⚗</span></button>
+      <p class="microcopy">Test sessions last in this tab only. Anonymous users are still created in Supabase and may count toward usage.</p>
+    </section>
+
+    <section id="lobby" class="panel lobby-panel hidden" aria-live="polite">
+      <div class="lobby-top">
+        <div><p class="eyebrow">PRIVATE LOBBY</p><h2 id="lobby-title">Your room</h2></div>
+        <button id="leave-room" class="button button-quiet" type="button">Leave room</button>
+      </div>
+      <section id="test-account-panel" class="test-account-panel hidden" aria-label="Switch test account">
+        <div>
+          <p class="eyebrow">TEMPORARY TEST MODE</p>
+          <h3>Active test account</h3>
+          <p class="test-copy">Switch accounts to inspect each player's private role. Account 1 is the host.</p>
+        </div>
+        <div class="test-account-buttons">
+          <button type="button" class="test-account-button active" data-test-account="0">Player 1 · Host</button>
+          <button type="button" class="test-account-button" data-test-account="1">Player 2</button>
+          <button type="button" class="test-account-button" data-test-account="2">Player 3</button>
+          <button type="button" class="test-account-button" data-test-account="3">Player 4</button>
+          <button type="button" class="test-account-button" data-test-account="4">Player 5</button>
+        </div>
+      </section>
+      <div class="room-code-box">
+        <div><span class="muted-label">ROOM CODE</span><strong id="active-code">------</strong></div>
+        <button id="copy-code" class="copy-button" type="button">Copy code</button>
+      </div>
+      <div class="players-heading"><h3>Players in the room</h3><span id="player-count" class="count-pill">0 / 15</span></div>
+      <div id="player-list" class="player-list"></div>
+      <div id="game-controls" class="game-controls">
+        <div class="game-status-line"><span class="muted-label">GAME STATUS</span><strong id="game-status">Waiting for the host</strong></div>
+        <button id="start-game" class="button button-primary hidden" type="button"><span>Start game</span><span aria-hidden="true">✦</span></button>
+        <p id="start-hint" class="microcopy">The host can start when at least 4 players have joined.</p>
+      </div>
+      <section id="role-card" class="role-card hidden" aria-live="polite">
+        <p class="eyebrow">YOUR SECRET ROLE</p>
+        <h3 id="role-name">Role</h3>
+        <p id="role-description"></p>
+        <p class="role-warning">Keep this role secret. Other players can only see their own role.</p>
+      </section>
+      <p id="lobby-note" class="lobby-note">Milestone 02: host-controlled start and private role assignment. Day/night actions and voting come next.</p>
+    </section>
+
+    <div id="notice" class="notice" role="status" aria-live="polite"></div>
+
+    <footer class="footer">
+      <span>BUILT FOR SECRETS, NOT SCREENSHOTS.</span>
+      <span>Milestone 02 · Roles + temporary test mode</span>
+    </footer>
+  </main>
+</body>
+</html>
