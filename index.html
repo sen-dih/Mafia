@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0b0a12">
-  <title>Untitled — Social Deduction</title>
+  <title>MAFIA — Social Deduction</title>
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script defer src="app.js"></script>
@@ -13,7 +13,7 @@
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
   <header class="topbar">
     <a class="brand" href="#" aria-label="Home">
-      <span class="brand-mark">✦</span><span id="game-name">UNTITLED</span>
+      <span class="brand-mark">✦</span><span id="game-name">MAFIA</span>
     </a>
     <div class="topbar-right"><span class="status-dot"></span><span>EARLY BUILD</span></div>
   </header>
@@ -22,7 +22,7 @@
     <section class="hero">
       <p class="eyebrow">A SOCIAL DEDUCTION GAME</p>
       <h1>Trust is a <span>limited resource.</span></h1>
-      <p class="hero-copy">Gather your people. Enter the room. Figure out who is lying before the night is over.</p>
+      <p class="hero-copy">Gather your people. Survive the night. Find the liars before the town goes quiet.</p>
     </section>
 
     <section class="workspace" aria-label="Game lobby">
@@ -56,11 +56,20 @@
     </section>
 
 
+    <section class="role-directory" aria-label="Role directory">
+      <div class="role-directory-heading"><p class="eyebrow">ROLE DIRECTORY</p><h2>Three sides. Too many secrets.</h2><p class="test-copy">Roles scale with player count. A five-player match always has Assassin, Doctor, Detective, Crewmate, and one randomly selected Town role.</p></div>
+      <div class="role-category-grid">
+        <article class="role-category mafia-category"><h3>MAFIA</h3><p>Win by eliminating the opposition.</p><ul><li><strong>Assassin</strong><span>Kills one player each night.</span></li><li><strong>Blackmailer</strong><span>Silences a player for the next day.</span></li><li><strong>Ambusher</strong><span>Attacks a visitor at the watched house.</span></li><li><strong>Disguiser</strong><span>Blocks one player's night ability.</span></li></ul></article>
+        <article class="role-category town-category"><h3>TOWN</h3><p>Find Mafia and keep the town alive.</p><ul><li><strong>Crewmate</strong><span>No ability; discussion and voting.</span></li><li><strong>Doctor</strong><span>Protects one player each night.</span></li><li><strong>Detective</strong><span>Learns one player's role; one-round cooldown.</span></li><li><strong>Guardian Angel</strong><span>Protects only after dying.</span></li><li><strong>Mayor</strong><span>Forces an elimination; two-round cooldown.</span></li><li><strong>Distractor</strong><span>Blocks one night ability, every night.</span></li></ul></article>
+        <article class="role-category neutral-category"><h3>NEUTRAL</h3><p>Win by your own special condition.</p><ul><li><strong>Jester</strong><span>Wins if voted out, not if killed at night.</span></li><li><strong>Vigilante</strong><span>One bullet; Mafia hit wins alone, other hit kills them.</span></li></ul></article>
+      </div>
+    </section>
+
     <section class="panel test-panel" aria-label="Temporary testing mode">
       <div class="test-panel-copy">
         <p class="eyebrow">DEVELOPER TOOL · TEMPORARY</p>
         <h2>Test with 5 players</h2>
-        <p class="test-copy">Creates five separate anonymous Supabase sessions in this browser, starts a private room, and lets you switch between the test players. No passwords or email addresses are needed. This is for testing only.</p>
+        <p class="test-copy">Creates five separate anonymous Supabase sessions in this browser and lets you switch between test players. Start the game from the lobby when ready. No passwords or email addresses are needed. This is for testing only.</p>
       </div>
       <button id="launch-test-mode" class="button button-secondary" type="button"><span>Launch 5-player test</span><span aria-hidden="true">⚗</span></button>
       <p class="microcopy">Test sessions last in this tab only. Anonymous users are still created in Supabase and may count toward usage.</p>
@@ -102,14 +111,38 @@
         <p id="role-description"></p>
         <p class="role-warning">Keep this role secret. Other players can only see their own role.</p>
       </section>
-      <p id="lobby-note" class="lobby-note">Milestone 02: host-controlled start and private role assignment. Day/night actions and voting come next.</p>
+      <section id="gameplay-panel" class="gameplay-panel hidden" aria-live="polite">
+        <div class="phase-header"><div><p class="eyebrow">LIVE MATCH</p><h3 id="phase-title">Night 1</h3></div><span id="alive-count" class="count-pill">Alive: 5</span></div>
+        <div id="round-result" class="round-result"></div>
+        <div id="private-result" class="private-result hidden"></div>
+        <div id="action-panel" class="action-panel-inner hidden">
+          <label for="action-type">Action</label>
+          <select id="action-type" class="target-select" aria-label="Choose action"></select>
+          <label for="action-target">Choose a target</label>
+          <select id="action-target" class="target-select"></select>
+          <button id="submit-action" class="button button-primary" type="button"><span>Submit action</span><span aria-hidden="true">↗</span></button>
+          <p id="action-hint" class="microcopy"></p>
+        </div>
+        <div id="dead-note" class="dead-note hidden">You are dead. You can still read the public chat, but you cannot act or send messages.</div>
+        <div class="phase-host-controls">
+          <p id="phase-instruction" class="microcopy">Your actions are private.</p>
+          <button id="advance-phase" class="button button-secondary hidden" type="button"><span>Resolve night</span><span aria-hidden="true">✦</span></button>
+        </div>
+        <div class="chat-panel">
+          <div class="chat-heading"><h3>Town chat</h3><span class="microcopy">Dead players can still read</span></div>
+          <div id="chat-log" class="chat-log" aria-live="polite"></div>
+          <form id="chat-form" class="chat-form"><input id="chat-input" maxlength="400" placeholder="Write a message..." aria-label="Chat message"><button class="button button-secondary" type="submit"><span>Send</span><span aria-hidden="true">↗</span></button></form>
+          <p id="chat-hint" class="microcopy"></p>
+        </div>
+      </section>
+      <p id="lobby-note" class="lobby-note">Secret roles, night abilities, investigations, voting, cooldowns, and public chat are handled by the game server.</p>
     </section>
 
     <div id="notice" class="notice" role="status" aria-live="polite"></div>
 
     <footer class="footer">
       <span>BUILT FOR SECRETS, NOT SCREENSHOTS.</span>
-      <span>Milestone 02 · Roles + temporary test mode</span>
+      <span>Milestone 03 · Roles, phases + temporary test mode</span>
     </footer>
   </main>
 </body>
