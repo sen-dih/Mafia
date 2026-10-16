@@ -127,3 +127,8 @@ body[data-phase="day"] .phase-timer{color:#42316e;background:rgba(255,255,255,.8
 .reveal-kicker{display:block;font:10px 'DM Mono',monospace;letter-spacing:.2em;color:#c5b4ff;margin-bottom:7px}.reveal-banner strong{display:block;font-size:18px;letter-spacing:.04em}.reveal-banner p{margin:7px 0 0;font-size:12px;line-height:1.65;color:var(--muted)}
 @keyframes revealGlow{0%{box-shadow:0 0 0 rgba(170,135,255,0)}35%{box-shadow:0 0 35px rgba(170,135,255,.22)}100%{box-shadow:0 0 0 rgba(170,135,255,0)}}
 @media(max-width:480px){.settings-grid{grid-template-columns:1fr}.phase-header{align-items:flex-start}.phase-metrics{flex-direction:column;align-items:flex-end}.phase-timer{font-size:15px}}
+/* Temporary 15-account developer testing controls */
+.test-account-buttons{max-height:220px;overflow:auto;padding:2px 4px 8px 0;}
+#advance-phase:not(.hidden){border-color:rgba(255,190,90,.45);color:#ffd18a;}
+
+.role-editor{margin-top:18px;padding-top:16px;border-top:1px solid rgba(151,130,204,.18)}.role-editor h3{font-size:13px;margin:0 0 8px}.role-count-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}.role-count-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 10px;border:1px solid rgba(183,158,255,.14);border-radius:9px;background:rgba(139,92,246,.045);font-size:12px}.role-count-row input{width:58px;min-width:0;padding:7px;background:#100e19;color:#eee;border:1px solid rgba(183,158,255,.25);border-radius:6px}.composition-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;flex-wrap:wrap}.composition-actions .button{margin:0}@media(max-width:560px){.role-count-grid{grid-template-columns:1fr}}

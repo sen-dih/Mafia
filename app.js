@@ -1,4 +1,4 @@
-/* MAFIA: private rooms, private role assignment, secure server-side actions, and 5-account testing. */
+/* MAFIA: private rooms, private role assignment, secure server-side actions, and 15-account testing. */
 const SUPABASE_URL = "https://bqsjueoemtvebbadzvbj.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_Ly88Op8N8V4ok_ZtJPjpAQ_XNT0grzg";
 const MAX_PLAYERS = 15;
@@ -11,10 +11,24 @@ const els = {
   gameplay: $("gameplay-panel"), phaseTitle: $("phase-title"), aliveCount: $("alive-count"), roundResult: $("round-result"), privateResult: $("private-result"),
   actionPanel: $("action-panel"), actionTarget: $("action-target"), actionType: $("action-type"), submitAction: $("submit-action"), actionHint: $("action-hint"),
   deadNote: $("dead-note"), phaseInstruction: $("phase-instruction"), advance: $("advance-phase"), chatLog: $("chat-log"), chatForm: $("chat-form"),
-  chatInput: $("chat-input"), chatHint: $("chat-hint"), daySeconds: $("day-seconds"), nightSeconds: $("night-seconds"), saveSettings: $("save-settings"), settingsHint: $("settings-hint"), lobbySettings: $("lobby-settings"), compMafia: $("comp-mafia"), compTown: $("comp-town"), compNeutral: $("comp-neutral"), phaseTimer: $("phase-timer"), timerProgress: $("timer-progress"), phaseEyebrow: $("phase-eyebrow"), revealBanner: $("reveal-banner"), revealTitle: $("reveal-title"), revealCopy: $("reveal-copy")
+  chatInput: $("chat-input"), chatHint: $("chat-hint"), daySeconds: $("day-seconds"), nightSeconds: $("night-seconds"), saveSettings: $("save-settings"), settingsHint: $("settings-hint"), lobbySettings: $("lobby-settings"), compMafia: $("comp-mafia"), compTown: $("comp-town"), compNeutral: $("comp-neutral"), roleCountGrid: $("role-count-grid"), saveComposition: $("save-composition"), compositionTotal: $("composition-total"), roleEditor: $("role-editor"), phaseTimer: $("phase-timer"), timerProgress: $("timer-progress"), phaseEyebrow: $("phase-eyebrow"), revealBanner: $("reveal-banner"), revealTitle: $("reveal-title"), revealCopy: $("reveal-copy")
 };
 let supabaseClient = null, currentRoom = null, currentUserId = null, pollHandle = null, noticeHandle = null;
 let testAccounts = [], testModeActive = false, lastChatSignature = "", latestState = null, timerHandle = null, autoAdvanceBusy = false, lastRevealText = "";
+function buildTestAccountButtons() {
+  const holder = document.querySelector(".test-account-buttons");
+  if (!holder) return;
+  holder.replaceChildren();
+  for (let i = 0; i < 15; i++) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `test-account-button${i === 0 ? " active" : ""}`;
+    button.dataset.testAccount = String(i);
+    button.textContent = `Player ${i + 1}${i === 0 ? " · Host" : ""}`;
+    button.addEventListener("click", () => activateTestAccount(i));
+    holder.append(button);
+  }
+}
 const ROLE_INFO = {
   Assassin: ["Mafia", "Choose one living player to kill each night. The Mafia wins by outnumbering the other living players."],
   Blackmailer: ["Mafia", "Choose a player each night. They cannot speak or vote during the following day. No cooldown."],
@@ -83,6 +97,65 @@ function roleAction(role, alive, phase, game) {
   }
   return null;
 }
+
+const COMPOSITION_ROLES = [
+  ["Assassin","Mafia"],["Blackmailer","Mafia"],["Ambusher","Mafia"],["Disguiser","Mafia"],
+  ["Crewmate","Town"],["Doctor","Town"],["Detective","Town"],["Guardian Angel","Town"],["Mayor","Town"],["Distractor","Town"],
+  ["Jester","Neutral"],["Vigilante","Neutral"]
+];
+const FIXED_15 = {"Assassin":1,"Blackmailer":1,"Ambusher":1,"Disguiser":0,"Crewmate":6,"Doctor":1,"Detective":1,"Guardian Angel":1,"Mayor":1,"Distractor":1,"Jester":0,"Vigilante":0};
+let compositionInputsBuilt = false, compositionPlayerCount = -1;
+function defaultComposition(count) {
+  if (count === 15) return {...FIXED_15};
+  const mafia = count >= 12 ? 3 : count >= 8 ? 2 : 1;
+  const town = count - mafia;
+  return {"Assassin":1,"Blackmailer":mafia-1,"Ambusher":0,"Disguiser":0,"Crewmate":Math.max(0,town-2),"Doctor":1,"Detective":1,"Guardian Angel":0,"Mayor":0,"Distractor":0,"Jester":0,"Vigilante":0};
+}
+function buildCompositionInputs(count) {
+  if (!compositionInputsBuilt) {
+    els.roleCountGrid.replaceChildren();
+    COMPOSITION_ROLES.forEach(([role,side]) => {
+      const label=document.createElement("label"); label.className="role-count-row";
+      const name=document.createElement("span"); name.textContent=`${role} · ${side}`;
+      const input=document.createElement("input"); input.type="number"; input.min="0"; input.max="15"; input.step="1"; input.value="0"; input.dataset.role=role; input.setAttribute("aria-label",`${role} count`);
+      input.addEventListener("input", updateCompositionEditor);
+      label.append(name,input); els.roleCountGrid.append(label);
+    });
+    compositionInputsBuilt=true;
+  }
+  const defaults=defaultComposition(count);
+  els.roleCountGrid.querySelectorAll("input[data-role]").forEach(input=>input.value=String(defaults[input.dataset.role]||0));
+  compositionPlayerCount=count;
+  updateCompositionEditor();
+}
+function readComposition() {
+  const result={}; els.roleCountGrid.querySelectorAll("input[data-role]").forEach(input=>result[input.dataset.role]=Math.max(0,Math.min(15,Number.parseInt(input.value||"0",10)||0))); return result;
+}
+function updateCompositionEditor() {
+  if (!els.roleCountGrid) return;
+  const comp=readComposition(); let total=0,mafia=0,town=0,neutral=0;
+  for (const [role,side] of COMPOSITION_ROLES) { const n=comp[role]||0; total+=n; if(side==="Mafia")mafia+=n; else if(side==="Town")town+=n; else neutral+=n; }
+  const count=latestState?.players?.length || 0;
+  els.compositionTotal.textContent=`${total} / ${count} roles selected · Mafia ${mafia} · Town ${town} · Neutral ${neutral}`;
+  els.compositionTotal.style.color=total===count&&mafia>0&&town>=3*mafia?"#a7f3d0":"#fca5a5";
+  els.compMafia.textContent=String(mafia); els.compTown.textContent=String(town); els.compNeutral.textContent=String(neutral);
+}
+async function saveRoleComposition() {
+  if(!currentRoom||!latestState)return;
+  if(currentUserId!==currentRoom.host_user_id)return showNotice("Only the host can edit role composition.",true);
+  const comp=readComposition(), count=(latestState.players||[]).length;
+  const total=Object.values(comp).reduce((a,b)=>a+b,0);
+  const mafia=["Assassin","Blackmailer","Ambusher","Disguiser"].reduce((n,r)=>n+comp[r],0);
+  const town=["Crewmate","Doctor","Detective","Guardian Angel","Mayor","Distractor"].reduce((n,r)=>n+comp[r],0);
+  if(total!==count)return showNotice(`Role counts total ${total}, but ${count} players are in the room.`,true);
+  if(mafia<1||town<3*mafia)return showNotice("Fairness rule: Town must have at least 3 players per Mafia member.",true);
+  if(count===15&&JSON.stringify(Object.keys(FIXED_15).sort().map(k=>[k,comp[k]]))!==JSON.stringify(Object.keys(FIXED_15).sort().map(k=>[k,FIXED_15[k]])))return showNotice("The 15-player composition is fixed.",true);
+  setBusy(els.saveComposition,true,"Saving composition…");
+  try { const {error}=await supabaseClient.rpc("set_private_role_composition",{p_room_code:currentRoom.code,p_composition:comp}); if(error)throw error; showNotice("Role composition saved. Roles will still be assigned randomly."); }
+  catch(error){showNotice(error.message||"Couldn't save role composition.",true);}
+  finally{setBusy(els.saveComposition,false);}
+}
+
 function updateComposition(count) {
   if (count < 4) { els.compMafia.textContent = "1"; els.compTown.textContent = String(Math.max(0,count-1)); els.compNeutral.textContent = "0"; return; }
   const mafia = count >= 14 ? 4 : count >= 11 ? 3 : count >= 8 ? 2 : 1;
@@ -149,11 +222,11 @@ function renderGameplay(data) {
     els.submitAction.disabled = submitted || els.actionTarget.options.length === 0;
     if (submitted) els.actionHint.textContent = "Your action is already submitted for this phase and is locked until the next phase.";
   }
+  els.advance.classList.toggle("hidden", !isHost || phase === "finished" || !testModeActive);
+  els.advance.querySelector("span").textContent = "TEST: Force next phase";
+  els.phaseInstruction.textContent = phase === "finished" ? `Game over. Winner: ${game.winner || "unknown"}.` : isHost ? (testModeActive ? "Testing mode: use the temporary force-next-phase button to skip the timer." : "The phase advances automatically when the timer reaches zero.") : "The phase advances when the shared timer reaches zero.";
   els.advance.classList.toggle("hidden", !isHost || phase === "finished");
-  els.advance.querySelector("span").textContent = "Timer advances phase automatically";
-  els.phaseInstruction.textContent = phase === "finished" ? `Game over. Winner: ${game.winner || "unknown"}.` : isHost ? "The phase advances automatically when the timer reaches zero." : "The phase advances when the shared timer reaches zero.";
-  els.advance.classList.toggle("hidden", !isHost || phase === "finished");
-  els.advance.disabled = true;
+  els.advance.disabled = !testModeActive;
   const chat = data.chat || [];
   const signature = JSON.stringify(chat.map(m => [m.created_at, m.display_name, m.body]));
   if (signature !== lastChatSignature) {
@@ -174,6 +247,12 @@ async function refreshLobby() {
   const players = data.players || []; renderPlayers(players, data.room.host_user_id); updateComposition(players.length);
   const isHost = currentUserId && currentUserId === data.room.host_user_id;
   const inGame = data.room.status === "in_game" || data.room.status === "finished";
+  if (!compositionInputsBuilt || (compositionPlayerCount !== players.length && !inGame)) buildCompositionInputs(players.length);
+  els.roleEditor.classList.toggle("hidden", !isHost || inGame);
+  els.roleCountGrid.querySelectorAll("input").forEach(input=>input.disabled=!isHost||inGame||players.length===15);
+  els.saveComposition.classList.toggle("hidden",!isHost||inGame||players.length===15);
+  if(players.length===15){ els.compositionTotal.textContent="15 / 15 roles · Fixed balanced preset"; }
+
   els.start.classList.toggle("hidden", !isHost || inGame); els.start.disabled = players.length < 4;
   els.startHint.classList.toggle("hidden", !isHost || inGame);
   els.lobbySettings.classList.toggle("hidden", inGame);
@@ -237,12 +316,12 @@ async function sendChat(event) {
   try { const { error } = await supabaseClient.rpc("send_private_chat", { p_room_code: currentRoom.code, p_body: body }); if (error) throw error; els.chatInput.value = ""; await refreshLobby(); }
   catch (error) { showNotice(error.message || "Couldn't send message.", true); }
 }
-async function launchFivePlayerTest() {
+async function launchFifteenPlayerTest() {
   if (!requireConfig()) return; if (currentRoom) return showNotice("Leave your current room before launching a test room.", true);
   setBusy(els.launchTest, true, "Creating test accounts…"); els.launchTest.disabled = true; const createdAccounts = [];
   try {
     if (!window.supabase?.createClient) throw new Error("Supabase's browser library did not load. Check your internet connection and refresh.");
-    for (let i = 1; i <= 5; i++) {
+    for (let i = 1; i <= 15; i++) {
       const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
       const { data, error } = await client.auth.signInAnonymously(); if (error) throw new Error(`Could not create test player ${i}: ${error.message}`);
       createdAccounts.push({ client, userId: data.user.id, name: `Test Player ${i}` });
@@ -251,7 +330,7 @@ async function launchFivePlayerTest() {
     const room = created?.room; if (!room?.code) throw new Error("Supabase did not return a room code for the test room.");
     for (let i = 1; i < createdAccounts.length; i++) { const { error } = await createdAccounts[i].client.rpc("join_private_room", { p_room_code: room.code, p_display_name: createdAccounts[i].name }); if (error) throw new Error(`Test player ${i + 1} couldn't join: ${error.message}`); }
     testAccounts = createdAccounts; testModeActive = true; els.testAccountPanel.classList.remove("hidden"); els.launchTest.disabled = true; els.launchTest.querySelector("span").textContent = "Test room created";
-    activateTestAccount(0, false); openLobby(room); showNotice("Five test players joined. Start the match, then switch accounts to test their actions.");
+    activateTestAccount(0, false); openLobby(room); showNotice("Fifteen test players joined. Start the match, then switch accounts to inspect composition and actions.");
   } catch (error) { await Promise.allSettled(createdAccounts.map(account => account.client.auth.signOut())); testAccounts = []; testModeActive = false; els.testAccountPanel.classList.add("hidden"); showNotice(error.message || "Couldn't launch the five-player test.", true); }
   finally { setBusy(els.launchTest, false); if (testModeActive) { els.launchTest.disabled = true; els.launchTest.querySelector("span").textContent = "Test room created"; } else els.launchTest.disabled = false; }
 }
@@ -262,14 +341,14 @@ function activateTestAccount(index, refresh = true) {
 }
 async function leaveRoom() {
   stopPolling(); currentRoom = null; latestState = null; lastChatSignature = ""; els.lobby.classList.add("hidden"); els.playerList.replaceChildren(); els.testAccountPanel.classList.add("hidden");
-  if (testModeActive) { await Promise.allSettled(testAccounts.map(account => account.client.auth.signOut())); testAccounts = []; testModeActive = false; els.launchTest.disabled = false; els.launchTest.querySelector("span").textContent = "Launch 5-player test"; }
+  if (testModeActive) { await Promise.allSettled(testAccounts.map(account => account.client.auth.signOut())); testAccounts = []; testModeActive = false; els.launchTest.disabled = false; els.launchTest.querySelector("span").textContent = "Launch 15-player test"; }
   showNotice("You left this screen. Room membership remains until the room is cleaned up.");
 }
 async function copyCode() { if (!currentRoom) return; try { await navigator.clipboard.writeText(currentRoom.code); showNotice("Room code copied."); } catch { showNotice(`Room code: ${currentRoom.code}`); } }
 els.create.addEventListener("click", createRoom); els.join.addEventListener("click", joinRoom); els.leave.addEventListener("click", leaveRoom); els.copy.addEventListener("click", copyCode);
-els.start.addEventListener("click", startGame); els.saveSettings.addEventListener("click", saveSettings); els.launchTest.addEventListener("click", launchFivePlayerTest); els.submitAction.addEventListener("click", submitAction);
+els.start.addEventListener("click", startGame); els.saveSettings.addEventListener("click", saveSettings); els.saveComposition.addEventListener("click", saveRoleComposition); els.launchTest.addEventListener("click", launchFifteenPlayerTest); els.submitAction.addEventListener("click", submitAction);
 els.actionType.addEventListener("change", () => { if (latestState?.game?.phase === "day") els.submitAction.querySelector("span").textContent = els.actionType.value === "mayor_eliminate" ? "Use mayor's decree" : "Submit vote"; }); els.advance.addEventListener("click", advancePhase); els.chatForm.addEventListener("submit", sendChat);
-document.querySelectorAll("[data-test-account]").forEach(button => button.addEventListener("click", () => activateTestAccount(Number(button.dataset.testAccount))));
+buildTestAccountButtons();
 els.roomCode.addEventListener("input", () => { els.roomCode.value = els.roomCode.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8); });
 els.roomCode.addEventListener("keydown", event => { if (event.key === "Enter") joinRoom(); }); els.createName.addEventListener("keydown", event => { if (event.key === "Enter") createRoom(); }); els.joinName.addEventListener("keydown", event => { if (event.key === "Enter") joinRoom(); });
 if (window.supabase?.createClient && isConfigured()) supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });

@@ -57,7 +57,7 @@
 
 
     <section class="role-directory" aria-label="Role directory">
-      <div class="role-directory-heading"><p class="eyebrow">ROLE DIRECTORY</p><h2>Three sides. Too many secrets.</h2><p class="test-copy">Roles scale with player count. A five-player match always has Assassin, Doctor, Detective, Crewmate, and one randomly selected Town role.</p></div>
+      <div class="role-directory-heading"><p class="eyebrow">ROLE DIRECTORY</p><h2>Three sides. Too many secrets.</h2><p class="test-copy">Roles scale with player count. A 15-player test room is available below to inspect the full role composition.</p></div>
       <div class="role-category-grid">
         <article class="role-category mafia-category"><h3>MAFIA</h3><p>Win by eliminating the opposition.</p><ul><li><strong>Assassin</strong><span>Kills one player each night.</span></li><li><strong>Blackmailer</strong><span>Silences a player for the next day.</span></li><li><strong>Ambusher</strong><span>Attacks a visitor at the watched house.</span></li><li><strong>Disguiser</strong><span>Blocks one player's night ability.</span></li></ul></article>
         <article class="role-category town-category"><h3>TOWN</h3><p>Find Mafia and keep the town alive.</p><ul><li><strong>Crewmate</strong><span>No ability; discussion and voting.</span></li><li><strong>Doctor</strong><span>Protects one player each night.</span></li><li><strong>Detective</strong><span>Learns one player's role; one-round cooldown.</span></li><li><strong>Guardian Angel</strong><span>Protects only after dying.</span></li><li><strong>Mayor</strong><span>Forces an elimination; two-round cooldown.</span></li><li><strong>Distractor</strong><span>Blocks one night ability, every night.</span></li></ul></article>
@@ -68,10 +68,10 @@
     <section class="panel test-panel" aria-label="Temporary testing mode">
       <div class="test-panel-copy">
         <p class="eyebrow">DEVELOPER TOOL · TEMPORARY</p>
-        <h2>Test with 5 players</h2>
-        <p class="test-copy">Creates five separate anonymous Supabase sessions in this browser and lets you switch between test players. Start the game from the lobby when ready. No passwords or email addresses are needed. This is for testing only.</p>
+        <h2>Test with 15 players</h2>
+        <p class="test-copy">Creates fifteen separate anonymous Supabase sessions in this browser and lets you switch between test players. Start the game from the lobby when ready. No passwords or email addresses are needed. This is for testing only.</p>
       </div>
-      <button id="launch-test-mode" class="button button-secondary" type="button"><span>Launch 5-player test</span><span aria-hidden="true">⚗</span></button>
+      <button id="launch-test-mode" class="button button-secondary" type="button"><span>Launch 15-player test</span><span aria-hidden="true">⚗</span></button>
       <p class="microcopy">Test sessions last in this tab only. Anonymous users are still created in Supabase and may count toward usage.</p>
     </section>
 
@@ -106,6 +106,12 @@
           <p class="eyebrow">MATCH SETTINGS</p><p class="test-copy">The host sets the pace before starting. Role assignments stay random.</p>
           <div class="settings-grid"><div><label for="day-seconds">Day discussion</label><select id="day-seconds" class="target-select"><option value="60">1 minute</option><option value="90" selected>1 min 30 sec</option><option value="120">2 minutes</option><option value="180">3 minutes</option><option value="240">4 minutes</option><option value="300">5 minutes</option></select></div><div><label for="night-seconds">Night actions</label><select id="night-seconds" class="target-select"><option value="15">15 seconds</option><option value="30" selected>30 seconds</option><option value="45">45 seconds</option><option value="60">1 minute</option><option value="90">1 min 30 sec</option><option value="120">2 minutes</option></select></div></div>
           <button id="save-settings" class="button button-secondary" type="button"><span>Save match settings</span><span aria-hidden="true">⚙</span></button><p id="settings-hint" class="microcopy">Only the host can change these settings, and only before the match begins.</p>
+          <div class="role-editor" id="role-editor">
+            <h3>Host role composition</h3>
+            <p class="microcopy">Choose how many of each role to include. Counts must equal the number of players. Town must be at least 3× Mafia. At 15 players, the balanced preset is locked.</p>
+            <div id="role-count-grid" class="role-count-grid"></div>
+            <div class="composition-actions"><button id="save-composition" class="button button-secondary" type="button"><span>Save role composition</span><span aria-hidden="true">✓</span></button><span id="composition-total" class="microcopy">0 / 0 roles selected</span></div>
+          </div>
           <div class="composition-box"><h3>Role composition preview</h3><div class="composition-grid"><div><strong id="comp-mafia">1</strong><span>Mafia</span></div><div><strong id="comp-town">3</strong><span>Town</span></div><div><strong id="comp-neutral">0–1</strong><span>Neutral</span></div></div><p class="microcopy">Exact roles are randomly assigned when the host starts the game. Neutral is a chance at 7+ players.</p></div>
         </section>
         <button id="start-game" class="button button-primary hidden" type="button"><span>Start game</span><span aria-hidden="true">✦</span></button>
@@ -134,7 +140,7 @@
         <div id="dead-note" class="dead-note hidden">You are dead. You can still read the public chat, but you cannot act or send messages.</div>
         <div class="phase-host-controls">
           <p id="phase-instruction" class="microcopy">Your actions are private.</p>
-          <button id="advance-phase" class="button button-secondary hidden" type="button"><span>Resolve night</span><span aria-hidden="true">✦</span></button>
+          <button id="advance-phase" class="button button-secondary hidden" type="button"><span>TEST: Force next phase</span><span aria-hidden="true">✦</span></button>
         </div>
         <div class="chat-panel">
           <div class="chat-heading"><h3>Town chat</h3><span class="microcopy">Dead players can still read</span></div>
