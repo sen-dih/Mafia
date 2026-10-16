@@ -11,10 +11,10 @@ const els = {
   gameplay: $("gameplay-panel"), phaseTitle: $("phase-title"), aliveCount: $("alive-count"), roundResult: $("round-result"), privateResult: $("private-result"),
   actionPanel: $("action-panel"), actionTarget: $("action-target"), actionType: $("action-type"), submitAction: $("submit-action"), actionHint: $("action-hint"),
   deadNote: $("dead-note"), phaseInstruction: $("phase-instruction"), advance: $("advance-phase"), chatLog: $("chat-log"), chatForm: $("chat-form"),
-  chatInput: $("chat-input"), chatHint: $("chat-hint")
+  chatInput: $("chat-input"), chatHint: $("chat-hint"), daySeconds: $("day-seconds"), nightSeconds: $("night-seconds"), saveSettings: $("save-settings"), settingsHint: $("settings-hint"), lobbySettings: $("lobby-settings"), compMafia: $("comp-mafia"), compTown: $("comp-town"), compNeutral: $("comp-neutral"), phaseTimer: $("phase-timer"), timerProgress: $("timer-progress"), phaseEyebrow: $("phase-eyebrow"), revealBanner: $("reveal-banner"), revealTitle: $("reveal-title"), revealCopy: $("reveal-copy")
 };
 let supabaseClient = null, currentRoom = null, currentUserId = null, pollHandle = null, noticeHandle = null;
-let testAccounts = [], testModeActive = false, lastChatSignature = "", latestState = null;
+let testAccounts = [], testModeActive = false, lastChatSignature = "", latestState = null, timerHandle = null, autoAdvanceBusy = false, lastRevealText = "";
 const ROLE_INFO = {
   Assassin: ["Mafia", "Choose one living player to kill each night. The Mafia wins by outnumbering the other living players."],
   Blackmailer: ["Mafia", "Choose a player each night. They cannot speak or vote during the following day. No cooldown."],
@@ -27,7 +27,7 @@ const ROLE_INFO = {
   Mayor: ["Town", "During the day, you can use your decree to eliminate one player without a public vote. The power has a two-round cooldown. You may still cast normal votes."],
   Distractor: ["Town", "Choose one player each night to block their night ability. No cooldown."],
   Jester: ["Neutral", "You win alone if the town votes you out. If Mafia kills you at night, you do not win and the game continues."],
-  Vigilante: ["Neutral", "You have one bullet. If you shoot a Mafia role, you win alone. If you shoot a non-Mafia player, you die. Your shot is spent either way."]
+  Vigilante: ["Neutral", "You have two bullets. Kill two Mafia members to win alone. If you shoot a non-Mafia player, you die."]
 };
 function showNotice(message, isError = false) {
   els.notice.textContent = message; els.notice.className = `notice show${isError ? " error" : ""}`;
@@ -79,16 +79,45 @@ function roleAction(role, alive, phase, game) {
     if (role === "Distractor" || role === "Disguiser") return ["block", "Choose whose night ability to block."];
     if (role === "Blackmailer") return ["silence", "Choose who will be silenced during the next day."];
     if (role === "Ambusher") return ["ambush", "Choose the house to watch for visitors tonight."];
-    if (role === "Vigilante") return ["shoot", "Choose carefully. You only have one bullet."];
+    if (role === "Vigilante") return ["shoot", `Choose carefully. ${game.vigilante_bullets ?? 2} bullet(s) remain. You need two Mafia kills to win.`];
   }
   return null;
 }
+function updateComposition(count) {
+  if (count < 4) { els.compMafia.textContent = "1"; els.compTown.textContent = String(Math.max(0,count-1)); els.compNeutral.textContent = "0"; return; }
+  const mafia = count >= 14 ? 4 : count >= 11 ? 3 : count >= 8 ? 2 : 1;
+  const neutralPossible = count >= 7;
+  els.compMafia.textContent = String(mafia);
+  els.compTown.textContent = neutralPossible ? `${count-mafia-1}–${count-mafia}` : String(count-mafia);
+  els.compNeutral.textContent = neutralPossible ? "0–1" : "0";
+}
+function startTimerTicker() {
+  if (timerHandle) clearInterval(timerHandle);
+  timerHandle = setInterval(async () => {
+    const game = latestState?.game;
+    if (!game || game.phase === "finished" || !game.phase_started_at) return;
+    const duration = Number(game.phase === "day" ? game.day_seconds : game.night_seconds) || (game.phase === "day" ? 90 : 30);
+    const elapsed = Math.max(0, (Date.now() - new Date(game.phase_started_at).getTime()) / 1000);
+    const remaining = Math.max(0, Math.ceil(duration - elapsed));
+    els.phaseTimer.textContent = `${String(Math.floor(remaining/60)).padStart(2,"0")}:${String(remaining%60).padStart(2,"0")}`;
+    els.timerProgress.style.width = `${Math.min(100, Math.max(0, elapsed/duration*100))}%`;
+    els.timerProgress.classList.toggle("timer-low", remaining <= 10);
+    if (currentUserId === latestState?.room?.host_user_id && remaining <= 0 && !autoAdvanceBusy) {
+      autoAdvanceBusy = true;
+      try { await advancePhase(true); } finally { autoAdvanceBusy = false; }
+    }
+  }, 250);
+}
 function renderGameplay(data) {
   const game = data.game;
+  if (data.room?.status === "lobby") { els.gameplay.classList.add("hidden"); document.body.dataset.phase = "lobby"; return; }
   if (!game) { els.gameplay.classList.add("hidden"); return; }
   els.gameplay.classList.remove("hidden");
   const phase = game.phase, alive = data.self_alive !== false, players = data.players || [], isHost = currentUserId === data.room.host_user_id;
   els.phaseTitle.textContent = phase === "finished" ? `${game.winner || "Game"} wins` : `${phase === "night" ? "Night" : "Day"} ${game.round_number}`;
+  document.body.dataset.phase = phase; els.phaseEyebrow.textContent = phase === "day" ? "MORNING · DISCUSSION OPEN" : phase === "night" ? "NIGHTFALL · CHOOSE CAREFULLY" : "MATCH COMPLETE";
+  els.phaseTimer.classList.toggle("hidden", phase === "finished");
+  if (game.last_result && game.last_result !== lastRevealText && /died|eliminated|wins|killed|revealed|Mafia members remain/i.test(game.last_result)) { lastRevealText = game.last_result; els.revealTitle.textContent = phase === "day" ? "DAWN BREAKS" : game.winner ? `${game.winner.toUpperCase()} VICTORIOUS` : "THE VOTE IS IN"; els.revealCopy.textContent = game.last_result; els.revealBanner.classList.remove("reveal-show"); void els.revealBanner.offsetWidth; els.revealBanner.classList.add("reveal-show"); }
   els.aliveCount.textContent = `Alive: ${game.living_players ?? players.filter(p => p.is_alive !== false).length}`;
   els.roundResult.textContent = game.last_result || "";
   els.privateResult.textContent = data.private_result || ""; els.privateResult.classList.toggle("hidden", !data.private_result);
@@ -121,8 +150,10 @@ function renderGameplay(data) {
     if (submitted) els.actionHint.textContent = "Your action is already submitted for this phase and is locked until the next phase.";
   }
   els.advance.classList.toggle("hidden", !isHost || phase === "finished");
-  els.advance.querySelector("span").textContent = phase === "night" ? "Resolve night" : "Resolve day and start night";
-  els.phaseInstruction.textContent = phase === "finished" ? `Game over. Winner: ${game.winner || "unknown"}.` : isHost ? "As host, resolve the current phase when players have submitted their actions." : "Only the host can resolve the phase. Actions are checked on the server.";
+  els.advance.querySelector("span").textContent = "Timer advances phase automatically";
+  els.phaseInstruction.textContent = phase === "finished" ? `Game over. Winner: ${game.winner || "unknown"}.` : isHost ? "The phase advances automatically when the timer reaches zero." : "The phase advances when the shared timer reaches zero.";
+  els.advance.classList.toggle("hidden", !isHost || phase === "finished");
+  els.advance.disabled = true;
   const chat = data.chat || [];
   const signature = JSON.stringify(chat.map(m => [m.created_at, m.display_name, m.body]));
   if (signature !== lastChatSignature) {
@@ -140,11 +171,16 @@ async function refreshLobby() {
   if (error) { showNotice(`Lobby refresh failed: ${error.message}`, true); return; }
   if (!data?.room) { stopPolling(); currentRoom = null; els.lobby.classList.add("hidden"); showNotice("This room is no longer available.", true); return; }
   currentRoom = { ...currentRoom, ...data.room }; latestState = data;
-  const players = data.players || []; renderPlayers(players, data.room.host_user_id);
+  const players = data.players || []; renderPlayers(players, data.room.host_user_id); updateComposition(players.length);
   const isHost = currentUserId && currentUserId === data.room.host_user_id;
   const inGame = data.room.status === "in_game" || data.room.status === "finished";
   els.start.classList.toggle("hidden", !isHost || inGame); els.start.disabled = players.length < 4;
   els.startHint.classList.toggle("hidden", !isHost || inGame);
+  els.lobbySettings.classList.toggle("hidden", inGame);
+  els.daySeconds.disabled = !isHost || inGame; els.nightSeconds.disabled = !isHost || inGame; els.saveSettings.classList.toggle("hidden", !isHost || inGame);
+  if (data.game?.day_seconds) els.daySeconds.value = String(data.game.day_seconds);
+  if (data.game?.night_seconds) els.nightSeconds.value = String(data.game.night_seconds);
+  els.settingsHint.textContent = isHost ? "Settings lock when the match starts. Role assignments remain random." : "Only the host can set the round lengths before the match starts.";
   els.gameStatus.textContent = inGame ? (data.game?.phase === "finished" ? `Game over · ${data.game.winner} wins` : `Game started · ${data.game?.phase || "in progress"}`) : `${players.length} player${players.length === 1 ? "" : "s"} in lobby`;
   els.roleCard.classList.toggle("hidden", !inGame || !data.self_role);
   if (inGame && data.self_role) {
@@ -155,8 +191,8 @@ async function refreshLobby() {
   }
   renderGameplay(data);
 }
-function startPolling() { stopPolling(); refreshLobby(); pollHandle = setInterval(refreshLobby, 2200); }
-function stopPolling() { if (pollHandle) clearInterval(pollHandle); pollHandle = null; }
+function startPolling() { stopPolling(); refreshLobby(); pollHandle = setInterval(refreshLobby, 2200); startTimerTicker(); }
+function stopPolling() { if (pollHandle) clearInterval(pollHandle); pollHandle = null; if (timerHandle) clearInterval(timerHandle); timerHandle = null; }
 function openLobby(room) { currentRoom = room; els.activeCode.textContent = room.code; els.lobbyTitle.textContent = "Your room is waiting"; els.lobby.classList.remove("hidden"); els.lobby.scrollIntoView({ behavior: "smooth", block: "nearest" }); startPolling(); }
 async function createRoom() {
   if (!requireConfig()) return; const name = cleanName(els.createName.value); if (!name) return showNotice("Enter a player name first.", true);
@@ -177,6 +213,13 @@ async function startGame() {
   try { const { error } = await supabaseClient.rpc("start_private_game", { p_room_code: currentRoom.code }); if (error) throw error; await refreshLobby(); showNotice("Game started. Your role is private."); }
   catch (error) { showNotice(error.message || "Couldn't start the game.", true); } finally { setBusy(els.start, false); }
 }
+async function saveSettings() {
+  if (!currentRoom) return;
+  setBusy(els.saveSettings, true, "Saving…");
+  try { const { error } = await supabaseClient.rpc("set_private_game_settings", { p_room_code: currentRoom.code, p_day_seconds: Number(els.daySeconds.value), p_night_seconds: Number(els.nightSeconds.value) }); if (error) throw error; await refreshLobby(); showNotice("Round timers saved. They lock when the game starts."); }
+  catch (error) { showNotice(error.message || "Couldn't save match settings.", true); }
+  finally { setBusy(els.saveSettings, false); }
+}
 async function submitAction() {
   if (!currentRoom || !latestState?.game) return;
   const actionType = els.actionType.value; const target = els.actionTarget.value || null;
@@ -184,8 +227,8 @@ async function submitAction() {
   try { const { error } = await supabaseClient.rpc("submit_private_action", { p_room_code: currentRoom.code, p_action_type: actionType, p_target_user_id: target }); if (error) throw error; await refreshLobby(); showNotice("Action submitted privately."); }
   catch (error) { showNotice(error.message || "Couldn't submit action.", true); } finally { setBusy(els.submitAction, false); }
 }
-async function advancePhase() {
-  if (!currentRoom) return; setBusy(els.advance, true, "Resolving…");
+async function advancePhase(automatic = false) {
+  if (!currentRoom) return; if (!automatic) setBusy(els.advance, true, "Resolving…");
   try { const { data, error } = await supabaseClient.rpc("advance_private_phase", { p_room_code: currentRoom.code }); if (error) throw error; await refreshLobby(); showNotice(data?.winner ? `${data.winner} wins!` : (data?.result || "Phase resolved.")); }
   catch (error) { showNotice(error.message || "Couldn't resolve the phase.", true); } finally { setBusy(els.advance, false); }
 }
@@ -224,7 +267,7 @@ async function leaveRoom() {
 }
 async function copyCode() { if (!currentRoom) return; try { await navigator.clipboard.writeText(currentRoom.code); showNotice("Room code copied."); } catch { showNotice(`Room code: ${currentRoom.code}`); } }
 els.create.addEventListener("click", createRoom); els.join.addEventListener("click", joinRoom); els.leave.addEventListener("click", leaveRoom); els.copy.addEventListener("click", copyCode);
-els.start.addEventListener("click", startGame); els.launchTest.addEventListener("click", launchFivePlayerTest); els.submitAction.addEventListener("click", submitAction);
+els.start.addEventListener("click", startGame); els.saveSettings.addEventListener("click", saveSettings); els.launchTest.addEventListener("click", launchFivePlayerTest); els.submitAction.addEventListener("click", submitAction);
 els.actionType.addEventListener("change", () => { if (latestState?.game?.phase === "day") els.submitAction.querySelector("span").textContent = els.actionType.value === "mayor_eliminate" ? "Use mayor's decree" : "Submit vote"; }); els.advance.addEventListener("click", advancePhase); els.chatForm.addEventListener("submit", sendChat);
 document.querySelectorAll("[data-test-account]").forEach(button => button.addEventListener("click", () => activateTestAccount(Number(button.dataset.testAccount))));
 els.roomCode.addEventListener("input", () => { els.roomCode.value = els.roomCode.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8); });

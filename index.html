@@ -102,6 +102,12 @@
       <div id="player-list" class="player-list"></div>
       <div id="game-controls" class="game-controls">
         <div class="game-status-line"><span class="muted-label">GAME STATUS</span><strong id="game-status">Waiting for the host</strong></div>
+        <section id="lobby-settings" class="lobby-settings">
+          <p class="eyebrow">MATCH SETTINGS</p><p class="test-copy">The host sets the pace before starting. Role assignments stay random.</p>
+          <div class="settings-grid"><div><label for="day-seconds">Day discussion</label><select id="day-seconds" class="target-select"><option value="60">1 minute</option><option value="90" selected>1 min 30 sec</option><option value="120">2 minutes</option><option value="180">3 minutes</option><option value="240">4 minutes</option><option value="300">5 minutes</option></select></div><div><label for="night-seconds">Night actions</label><select id="night-seconds" class="target-select"><option value="15">15 seconds</option><option value="30" selected>30 seconds</option><option value="45">45 seconds</option><option value="60">1 minute</option><option value="90">1 min 30 sec</option><option value="120">2 minutes</option></select></div></div>
+          <button id="save-settings" class="button button-secondary" type="button"><span>Save match settings</span><span aria-hidden="true">⚙</span></button><p id="settings-hint" class="microcopy">Only the host can change these settings, and only before the match begins.</p>
+          <div class="composition-box"><h3>Role composition preview</h3><div class="composition-grid"><div><strong id="comp-mafia">1</strong><span>Mafia</span></div><div><strong id="comp-town">3</strong><span>Town</span></div><div><strong id="comp-neutral">0–1</strong><span>Neutral</span></div></div><p class="microcopy">Exact roles are randomly assigned when the host starts the game. Neutral is a chance at 7+ players.</p></div>
+        </section>
         <button id="start-game" class="button button-primary hidden" type="button"><span>Start game</span><span aria-hidden="true">✦</span></button>
         <p id="start-hint" class="microcopy">The host can start when at least 4 players have joined.</p>
       </div>
@@ -112,7 +118,9 @@
         <p class="role-warning">Keep this role secret. Other players can only see their own role.</p>
       </section>
       <section id="gameplay-panel" class="gameplay-panel hidden" aria-live="polite">
-        <div class="phase-header"><div><p class="eyebrow">LIVE MATCH</p><h3 id="phase-title">Night 1</h3></div><span id="alive-count" class="count-pill">Alive: 5</span></div>
+        <div class="phase-header"><div><p class="eyebrow" id="phase-eyebrow">LIVE MATCH</p><h3 id="phase-title">Night 1</h3></div><div class="phase-metrics"><span id="alive-count" class="count-pill">Alive: 5</span><span id="phase-timer" class="phase-timer">00:30</span></div></div>
+        <div class="timer-track"><div id="timer-progress" class="timer-progress"></div></div>
+        <div id="reveal-banner" class="reveal-banner" aria-live="assertive"><span class="reveal-kicker">THE TOWN HAS SPOKEN</span><strong id="reveal-title"></strong><p id="reveal-copy"></p></div>
         <div id="round-result" class="round-result"></div>
         <div id="private-result" class="private-result hidden"></div>
         <div id="action-panel" class="action-panel-inner hidden">
@@ -142,7 +150,7 @@
 
     <footer class="footer">
       <span>BUILT FOR SECRETS, NOT SCREENSHOTS.</span>
-      <span>Milestone 03 · Roles, phases + temporary test mode</span>
+      <span>Milestone 04 · Timed rounds, reveal events + role composition</span>
     </footer>
   </main>
 </body>
