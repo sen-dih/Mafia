@@ -1,0 +1,85 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
+
+:root{color-scheme:dark;--bg:#0b0a12;--panel:rgba(20,18,31,.82);--line:rgba(186,165,255,.16);--text:#f4f0ff;--muted:#a6a0ba;--purple:#a78bfa;--purple2:#7656db;--mint:#85f0cb;--danger:#ff9cae}
+*{box-sizing:border-box}
+html{min-height:100%;background:var(--bg)}
+body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 50% -20%,#292044 0,transparent 55%),var(--bg);color:var(--text);font-family:Manrope,system-ui,sans-serif;overflow-x:hidden}
+.ambient{position:fixed;pointer-events:none;filter:blur(100px);opacity:.16;border-radius:50%;z-index:0}
+.ambient-one{width:280px;height:280px;background:#8557ff;top:20%;left:-120px}
+.ambient-two{width:320px;height:320px;background:#4e8fbb;right:-180px;bottom:0}
+.topbar,.shell{position:relative;z-index:1}
+.topbar{height:76px;padding:0 clamp(20px,5vw,72px);display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.06)}
+.brand{display:flex;align-items:center;gap:11px;color:var(--text);text-decoration:none;font-size:12px;letter-spacing:.18em;font-weight:800}
+.brand-mark{display:grid;place-items:center;width:32px;height:32px;border:1px solid #8067c9;border-radius:10px;color:#d7caff;background:rgba(139,92,246,.12);font-size:19px;box-shadow:0 0 22px rgba(139,92,246,.16)}
+.topbar-right,.eyebrow,.muted-label,.footer,.microcopy,.step-number{font-family:'DM Mono',monospace}
+.topbar-right{display:flex;align-items:center;gap:9px;color:#b7b0ca;font-size:10px;letter-spacing:.12em}
+.status-dot{width:7px;height:7px;background:var(--mint);border-radius:50%;box-shadow:0 0 10px rgba(133,240,203,.65)}
+.shell{width:min(1060px,calc(100% - 36px));margin:0 auto}
+.hero{padding:66px 0 42px;text-align:center}
+.eyebrow{margin:0 0 12px;color:#b49aff;font-size:10px;letter-spacing:.18em}
+h1{margin:0;font-size:clamp(35px,6vw,66px);line-height:1.08;letter-spacing:-.055em;font-weight:800}
+h1 span{display:block;color:#bba8ff;text-shadow:0 0 35px rgba(167,139,250,.2)}
+.hero-copy{max-width:510px;margin:20px auto 0;color:var(--muted);font-size:14px;line-height:1.8}
+.workspace{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.panel{border:1px solid var(--line);background:linear-gradient(145deg,rgba(28,24,43,.94),rgba(15,14,24,.91));border-radius:20px;box-shadow:0 18px 60px rgba(0,0,0,.16)}
+.action-panel{padding:26px}
+.panel-heading,.lobby-top,.players-heading{display:flex;justify-content:space-between;align-items:center;gap:16px}
+h2{font-size:22px;letter-spacing:-.035em;margin:0 0 23px}
+.step-number{color:#777087;font-size:12px}
+label{display:block;color:#c9c3d8;font-size:12px;margin:17px 0 8px}
+input{width:100%;height:47px;border:1px solid rgba(201,188,255,.15);background:rgba(5,5,12,.48);border-radius:10px;padding:0 14px;color:var(--text);font:inherit;font-size:13px;outline:none;transition:border-color .18s,box-shadow .18s}
+input:focus{border-color:#9a7bf2;box-shadow:0 0 0 3px rgba(154,123,242,.13)}
+input::placeholder{color:#6f6980}
+.code-input{font-family:'DM Mono',monospace;letter-spacing:.16em;text-transform:uppercase}
+.button{width:100%;height:47px;margin-top:17px;border-radius:10px;padding:0 15px;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;font:700 12px Manrope,sans-serif;transition:transform .15s,filter .15s,border-color .15s}
+.button:hover{filter:brightness(1.12);transform:translateY(-1px)}
+.button:disabled{opacity:.55;cursor:wait;transform:none}
+.button-primary{color:#171024;background:linear-gradient(105deg,#c3b2ff,#9c82f2);border:1px solid #d2c7ff;box-shadow:0 8px 24px rgba(133,99,231,.15)}
+.button-secondary{color:#e8e1ff;background:rgba(139,92,246,.09);border:1px solid rgba(174,147,255,.35)}
+.button-quiet{width:auto;height:36px;margin:0;color:#c6bfd8;background:transparent;border:1px solid var(--line);justify-content:center}
+.microcopy{font-size:10px;color:#817b93;line-height:1.6;margin:13px 0 0}
+.lobby-panel{margin-top:18px;padding:26px;animation:rise .25s ease-out}
+.hidden{display:none!important}
+.lobby-top h2{margin-bottom:0}
+.room-code-box{margin:23px 0;padding:17px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px dashed rgba(183,158,255,.38);border-radius:13px;background:rgba(112,86,190,.08)}
+.muted-label{display:block;color:#8f87a6;font-size:9px;letter-spacing:.16em;margin-bottom:7px}
+.room-code-box strong{font:500 24px 'DM Mono',monospace;letter-spacing:.2em;color:#d5c8ff}
+.copy-button{border:1px solid rgba(183,158,255,.25);border-radius:8px;background:rgba(255,255,255,.035);color:#e5dcff;padding:10px 12px;font:600 11px Manrope,sans-serif;cursor:pointer}
+.players-heading{margin-bottom:12px}
+.players-heading h3{font-size:13px;margin:0}
+.count-pill{padding:6px 9px;border-radius:99px;background:rgba(133,240,203,.08);border:1px solid rgba(133,240,203,.17);color:var(--mint);font:10px 'DM Mono',monospace}
+.player-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.player-item{display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid rgba(255,255,255,.065);background:rgba(255,255,255,.025);border-radius:10px;min-width:0}
+.avatar{width:28px;height:28px;display:grid;place-items:center;flex:none;border-radius:9px;background:rgba(167,139,250,.15);color:#c9baff;font-size:12px;font-weight:800}
+.player-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+.host-tag{margin-left:auto;color:#a997e5;font:9px 'DM Mono',monospace}
+.lobby-note{margin:17px 0 0;color:#89829e;font-size:11px;line-height:1.7}
+.notice{position:fixed;left:50%;bottom:24px;z-index:5;transform:translate(-50%,20px);opacity:0;pointer-events:none;max-width:calc(100% - 32px);padding:12px 16px;border-radius:10px;border:1px solid var(--line);background:#211c31;color:#f5f0ff;font-size:12px;box-shadow:0 10px 35px #0007;transition:opacity .2s,transform .2s}
+.notice.show{opacity:1;transform:translate(-50%,0)}
+.notice.error{border-color:rgba(255,156,174,.4);color:#ffd9df}
+.footer{display:flex;justify-content:space-between;gap:14px;padding:38px 0 26px;color:#635d74;font-size:9px;letter-spacing:.1em}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:680px){.topbar{height:64px}.hero{padding:49px 0 30px}.workspace{grid-template-columns:1fr}.action-panel{padding:22px}.lobby-panel{padding:20px}.footer{flex-direction:column;align-items:center;text-align:center;padding-top:28px}.player-list{grid-template-columns:1fr 1fr}}
+@media(max-width:380px){.player-list{grid-template-columns:1fr}.room-code-box strong{font-size:20px}.hero-copy{font-size:13px}}
+.game-controls{margin-top:18px;padding:17px;border:1px solid rgba(183,158,255,.14);border-radius:13px;background:rgba(7,6,13,.28)}
+.game-status-line{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.game-status-line .muted-label{margin:0}
+.game-status-line strong{font-size:12px;color:#d9d0f4;font-weight:700;text-align:right}
+.game-controls .button{max-width:300px}
+.role-card{margin-top:16px;padding:23px;border:1px solid rgba(167,139,250,.42);border-radius:16px;background:radial-gradient(ellipse at top right,rgba(139,92,246,.18),transparent 60%),rgba(8,7,15,.72);box-shadow:0 0 35px rgba(139,92,246,.08)}
+.role-card h3{font-size:clamp(26px,4vw,36px);letter-spacing:-.04em;margin:0 0 10px;color:#d7c7ff}
+.role-card p:not(.eyebrow){color:#bcb4d1;font-size:13px;line-height:1.75;margin:0}
+.role-card .role-warning{margin-top:14px!important;padding-top:13px;border-top:1px solid rgba(255,255,255,.08);font-size:11px!important;color:#e3d9ff!important}
+
+
+/* Temporary five-player test mode */
+.test-panel{margin-top:16px;padding:23px 26px;display:grid;grid-template-columns:1fr minmax(210px,280px);align-items:center;gap:16px}
+.test-panel h2{margin:0 0 8px;font-size:19px}
+.test-copy{margin:0;color:var(--muted);font-size:12px;line-height:1.75}
+.test-panel .button{margin:0}
+.test-account-panel{margin:0 0 18px;padding:17px;border:1px solid rgba(167,139,250,.28);border-radius:13px;background:rgba(112,86,190,.07)}
+.test-account-panel h3{margin:0 0 7px;font-size:14px}
+.test-account-buttons{display:flex;flex-wrap:wrap;gap:8px;margin-top:13px}
+.test-account-button{border:1px solid rgba(183,158,255,.25);border-radius:8px;background:rgba(255,255,255,.035);color:#d9d0f4;padding:9px 11px;font:600 11px Manrope,sans-serif;cursor:pointer}
+.test-account-button.active{border-color:#bba8ff;background:rgba(139,92,246,.2);color:#fff;box-shadow:0 0 18px rgba(139,92,246,.12)}
+@media(max-width:680px){.test-panel{grid-template-columns:1fr;padding:21px}.test-panel .button{max-width:none}}
