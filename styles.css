@@ -145,3 +145,19 @@ body[data-phase="day"] .phase-timer{color:#42316e;background:rgba(255,255,255,.8
 #gameplay-panel>.live-composition{grid-column:2;grid-row:1;position:sticky;top:16px;margin:0}
 #gameplay-panel>.gameplay-main{grid-column:1;grid-row:1;min-width:0}
 @media(max-width:760px){#gameplay-panel{grid-template-columns:minmax(0,1fr)}#gameplay-panel>.live-composition{grid-column:1;grid-row:1;position:static;margin:0 0 14px}#gameplay-panel>.gameplay-main{grid-column:1;grid-row:2}}
+
+
+/* Milestone 08: gentle dawn cutscene, accessible daylight text, animated casualty report. */
+body[data-phase="day"]{transition:background 5.8s ease,color 5.8s ease;background:linear-gradient(135deg,#e7e2cf 0%,#eeecdf 48%,#dcdce8 100%);color:#171717}
+body[data-phase="day"] *,body[data-phase="day"] .hero h1,body[data-phase="day"] h1,body[data-phase="day"] h2,body[data-phase="day"] h3,body[data-phase="day"] p,body[data-phase="day"] label,body[data-phase="day"] .microcopy,body[data-phase="day"] .muted-label,body[data-phase="day"] .player-name,body[data-phase="day"] .role-category li strong,body[data-phase="day"] .role-category li span,body[data-phase="day"] .live-composition strong,body[data-phase="day"] .live-composition .microcopy{color:#171717}
+body[data-phase="day"] .reveal-banner{background:rgba(255,255,255,.72);border-color:rgba(30,30,30,.18);color:#111}
+body[data-phase="day"] .reveal-kicker,body[data-phase="day"] .reveal-banner strong,body[data-phase="day"] .reveal-banner p{color:#111}
+body[data-phase="day"] .phase-timer,body[data-phase="day"] .composition-grid strong{color:#171717}
+body.dawn-cutscene-active[data-phase="day"]{background:linear-gradient(135deg,#d7d2c3 0%,#e6e4d8 48%,#d8d8e1 100%)}
+body.dawn-cutscene-active .reveal-banner{max-height:240px;opacity:1;transform:translateY(0);padding:22px;border-color:rgba(40,35,25,.24);animation:dawnCurtain 5.5s ease both}
+body.dawn-cutscene-active .reveal-banner strong{font-size:clamp(22px,3vw,32px);letter-spacing:.02em}
+body.dawn-cutscene-active .reveal-banner p{font-size:14px}
+body.dawn-cutscene-active .phase-header,body.dawn-cutscene-active .timer-track,body.dawn-cutscene-active .action-panel-inner,body.dawn-cutscene-active .chat-panel,body.dawn-cutscene-active .phase-host-controls{opacity:.12;pointer-events:none;transition:opacity 1s ease}
+.dawn-cutscene .live-composition{opacity:1}
+@keyframes dawnCurtain{0%{opacity:0;transform:translateY(-20px);filter:blur(5px)}25%{opacity:1;transform:translateY(0);filter:blur(0)}70%{opacity:1}100%{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){body,body[data-phase="day"],.reveal-banner{transition:none!important;animation:none!important}}

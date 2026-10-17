@@ -14,7 +14,7 @@ const els = {
   chatInput: $("chat-input"), chatHint: $("chat-hint"), daySeconds: $("day-seconds"), nightSeconds: $("night-seconds"), saveSettings: $("save-settings"), settingsHint: $("settings-hint"), lobbySettings: $("lobby-settings"), compMafia: $("comp-mafia"), compTown: $("comp-town"), compNeutral: $("comp-neutral"), roleCountGrid: $("role-count-grid"), saveComposition: $("save-composition"), compositionTotal: $("composition-total"), roleEditor: $("role-editor"), neutralEnabled: $("neutral-enabled"), liveComposition: $("live-composition"), liveCompositionText: $("live-composition-text"), liveCompositionDetail: $("live-composition-detail"), phaseTimer: $("phase-timer"), timerProgress: $("timer-progress"), phaseEyebrow: $("phase-eyebrow"), revealBanner: $("reveal-banner"), revealTitle: $("reveal-title"), revealCopy: $("reveal-copy")
 };
 let supabaseClient = null, currentRoom = null, currentUserId = null, pollHandle = null, noticeHandle = null;
-let testAccounts = [], testModeActive = false, lastChatSignature = "", latestState = null, timerHandle = null, autoAdvanceBusy = false, lastRevealText = "";
+let testAccounts = [], testModeActive = false, lastChatSignature = "", latestState = null, timerHandle = null, autoAdvanceBusy = false, lastRevealText = "", lastRenderedPhase = null;
 function buildTestAccountButtons() {
   const holder = document.querySelector(".test-account-buttons");
   if (!holder) return;
@@ -113,17 +113,30 @@ function makeComposition(count, neutralsEnabled) {
   const town = count - mafia - neutral;
   const comp = Object.fromEntries([...MAFIA_EXTRAS, "Assassin", ...TOWN_ROLES, ...NEUTRAL_ROLES].map(r => [r, 0]));
   comp.Assassin = 1;
-  for (let i = 1; i < mafia; i++) comp[randomItem(MAFIA_EXTRAS)]++;
+  // Pick distinct Mafia roles; for 3 Mafia, choose 2 of the 3 extras without replacement.
+  const mafiaPool = [...MAFIA_EXTRAS];
+  for (let i = 1; i < mafia; i++) {
+    const index = Math.floor(Math.random() * mafiaPool.length);
+    comp[mafiaPool.splice(index, 1)[0]]++;
+  }
   comp.Doctor = 1;
-  const remainingTown = Math.max(0, town - 1);
-  for (let i = 0; i < remainingTown; i++) {
-    const choices = TOWN_ROLES.filter(r => r !== "Doctor");
-    comp[randomItem(choices)]++;
+  // Every special Town role appears at most once. Crewmates fill any remaining slots.
+  const townPool = TOWN_ROLES.filter(r => r !== "Crewmate" && r !== "Doctor");
+  for (let i = 1; i < town; i++) {
+    if (townPool.length) {
+      const index = Math.floor(Math.random() * townPool.length);
+      comp[townPool.splice(index, 1)[0]]++;
+    } else {
+      comp.Crewmate++;
+    }
   }
   if (neutral > 0) {
-    const pool = [];
-    for (let i = 0; i < neutral; i++) pool.push(randomItem(NEUTRAL_ROLES));
-    pool.forEach(r => comp[r]++);
+    // Two Neutral slots means one Jester and one Vigilante, never duplicates.
+    const neutralPool = [...NEUTRAL_ROLES];
+    for (let i = 0; i < neutral; i++) {
+      const index = Math.floor(Math.random() * neutralPool.length);
+      comp[neutralPool.splice(index, 1)[0]]++;
+    }
   }
   return comp;
 }
@@ -163,8 +176,7 @@ function renderComposition(comp, count) {
   els.compositionTotal.style.color = s.total === count && s.town >= 3 * s.mafia ? "#a7f3d0" : "#fca5a5";
   if (els.liveCompositionText) {
     els.liveCompositionText.textContent = `${s.mafia} Mafia · ${s.town} Town · ${s.neutral} Neutral`;
-    const lines = Object.entries(comp).filter(([, n]) => n > 0).map(([r, n]) => `${r}${n > 1 ? ` ×${n}` : ""}`);
-    els.liveCompositionDetail.textContent = lines.join(" · ");
+    els.liveCompositionDetail.textContent = `Town roles: ${s.town} · Mafia roles: ${s.mafia} · Neutral roles: ${s.neutral}`;
   }
 }
 function updateComposition(count) {
@@ -219,6 +231,10 @@ function startTimerTicker() {
     if (!game || game.phase === "finished" || !game.phase_started_at) return;
     const duration = Number(game.phase === "day" ? game.day_seconds : game.night_seconds) || (game.phase === "day" ? 90 : 30);
     const elapsed = Math.max(0, (Date.now() - new Date(game.phase_started_at).getTime()) / 1000);
+    const waitingForDawn = game.phase === "day" && Date.now() < new Date(game.phase_started_at).getTime();
+    els.phaseTimer.classList.toggle("hidden", waitingForDawn);
+    els.timerProgress.classList.toggle("hidden", waitingForDawn);
+    if (waitingForDawn) { els.phaseTimer.textContent = "DAWN"; return; }
     const remaining = Math.max(0, Math.ceil(duration - elapsed));
     els.phaseTimer.textContent = `${String(Math.floor(remaining/60)).padStart(2,"0")}:${String(remaining%60).padStart(2,"0")}`;
     els.timerProgress.style.width = `${Math.min(100, Math.max(0, elapsed/duration*100))}%`;
@@ -235,10 +251,14 @@ function renderGameplay(data) {
   if (!game) { els.gameplay.classList.add("hidden"); return; }
   els.gameplay.classList.remove("hidden");
   const phase = game.phase, alive = data.self_alive !== false, players = data.players || [], isHost = currentUserId === data.room.host_user_id;
+  const dawnCutscene = phase === "day" && Date.now() < new Date(game.phase_started_at).getTime();
+  if (lastRenderedPhase === "night" && phase === "day") { lastRevealText = game.last_result || ""; els.revealTitle.textContent = "DAWN BREAKS"; els.revealCopy.textContent = game.last_result || "The night has ended."; els.revealBanner.classList.remove("reveal-show"); void els.revealBanner.offsetWidth; els.revealBanner.classList.add("reveal-show"); }
+  lastRenderedPhase = phase;
+  els.gameplay.classList.toggle("dawn-cutscene", dawnCutscene);
   els.phaseTitle.textContent = phase === "finished" ? `${game.winner || "Game"} wins` : `${phase === "night" ? "Night" : "Day"} ${game.round_number}`;
-  document.body.dataset.phase = phase; els.phaseEyebrow.textContent = phase === "day" ? "MORNING · DISCUSSION OPEN" : phase === "night" ? "NIGHTFALL · CHOOSE CAREFULLY" : "MATCH COMPLETE";
-  els.phaseTimer.classList.toggle("hidden", phase === "finished");
-  if (game.last_result && game.last_result !== lastRevealText && /died|eliminated|wins|killed|revealed|Mafia members remain/i.test(game.last_result)) { lastRevealText = game.last_result; els.revealTitle.textContent = phase === "day" ? "DAWN BREAKS" : game.winner ? `${game.winner.toUpperCase()} VICTORIOUS` : "THE VOTE IS IN"; els.revealCopy.textContent = game.last_result; els.revealBanner.classList.remove("reveal-show"); void els.revealBanner.offsetWidth; els.revealBanner.classList.add("reveal-show"); }
+  document.body.dataset.phase = phase; document.body.classList.toggle("dawn-cutscene-active", dawnCutscene); els.phaseEyebrow.textContent = dawnCutscene ? "DAWN · THE NIGHT'S TOLL" : phase === "day" ? "MORNING · DISCUSSION OPEN" : phase === "night" ? "NIGHTFALL · CHOOSE CAREFULLY" : "MATCH COMPLETE";
+  els.phaseTimer.classList.toggle("hidden", phase === "finished" || dawnCutscene);
+  if (!dawnCutscene && game.last_result && game.last_result !== lastRevealText && /died|eliminated|wins|killed|revealed|Mafia members remain/i.test(game.last_result)) { lastRevealText = game.last_result; els.revealTitle.textContent = phase === "day" ? "DAWN BREAKS" : game.winner ? `${game.winner.toUpperCase()} VICTORIOUS` : "THE VOTE IS IN"; els.revealCopy.textContent = game.last_result; els.revealBanner.classList.remove("reveal-show"); void els.revealBanner.offsetWidth; els.revealBanner.classList.add("reveal-show"); }
   els.aliveCount.textContent = `Alive: ${game.living_players ?? players.filter(p => p.is_alive !== false).length}`;
   els.roundResult.textContent = game.last_result || "";
   els.privateResult.textContent = data.private_result || ""; els.privateResult.classList.toggle("hidden", !data.private_result);
@@ -247,7 +267,7 @@ function renderGameplay(data) {
   const isSilenced = !!players.find(p => p.user_id === currentUserId)?.silenced;
   const isDayAction = phase === "day" && alive && role;
   const canAct = phase !== "finished" && !(phase === "day" && isSilenced) && ((alive && (action || isDayAction)) || (!alive && role === "Guardian Angel" && phase === "night"));
-  els.actionPanel.classList.toggle("hidden", !canAct);
+  els.actionPanel.classList.toggle("hidden", !canAct || dawnCutscene);
   els.deadNote.classList.toggle("hidden", alive || phase === "finished");
   els.deadNote.textContent = role === "Guardian Angel" && !alive ? "You are dead, but your Guardian Angel power is active. You can protect one living player each night. Dead players can still read chat." : "You are dead. You can still read the public chat, but you cannot act or send messages.";
   if (canAct) {
@@ -256,6 +276,7 @@ function renderGameplay(data) {
     const addType = (value, label) => { const o = document.createElement("option"); o.value = value; o.textContent = label; els.actionType.append(o); };
     if (phase === "day") {
       addType("vote", "Cast your vote");
+      addType("skip", "Skip vote");
       if (role === "Mayor") addType("mayor_eliminate", "Mayor's decree (bypass vote)");
       els.actionHint.textContent = role === "Mayor" ? "You can vote normally or use your decree. Cooldown is enforced by the server." : "Choose who you think should be eliminated.";
       els.submitAction.querySelector("span").textContent = "Submit vote";
@@ -264,10 +285,13 @@ function renderGameplay(data) {
       els.actionHint.textContent = action[1]; els.submitAction.querySelector("span").textContent = "Submit night action";
     }
     if ([...els.actionType.options].some(option => option.value === previousActionType)) els.actionType.value = previousActionType;
-    if (phase === "day") els.submitAction.querySelector("span").textContent = els.actionType.value === "mayor_eliminate" ? "Use mayor's decree" : "Submit vote";
-    targetOptions(players, role, phase === "day" ? "vote" : action?.[0]);
+    if (phase === "day") els.submitAction.querySelector("span").textContent = els.actionType.value === "mayor_eliminate" ? "Use mayor's decree" : els.actionType.value === "skip" ? "Skip vote" : "Submit vote";
+    targetOptions(players, role, phase === "day" ? (els.actionType.value === "skip" ? "skip" : "vote") : action?.[0]);
+    const skipping = phase === "day" && els.actionType.value === "skip";
+    els.actionTarget.classList.toggle("hidden", skipping); const targetLabel = els.actionPanel.querySelector('label[for="action-target"]'); if (targetLabel) targetLabel.classList.toggle("hidden", skipping);
     const submitted = !!game.self_action_submitted;
-    els.submitAction.disabled = submitted || els.actionTarget.options.length === 0;
+    els.submitAction.disabled = submitted || (!skipping && els.actionTarget.options.length === 0) || dawnCutscene;
+    els.actionType.disabled = submitted || dawnCutscene; els.actionTarget.disabled = skipping || els.actionTarget.options.length === 0 || dawnCutscene;
     if (submitted) els.actionHint.textContent = "Your action is already submitted for this phase and is locked until the next phase.";
   }
   els.advance.classList.toggle("hidden", !isHost || phase === "finished" || !testModeActive);
@@ -282,7 +306,7 @@ function renderGameplay(data) {
     chat.forEach(message => { const row = document.createElement("div"); row.className = "chat-message"; const who = document.createElement("strong"); who.textContent = message.display_name; const body = document.createElement("span"); body.textContent = message.body; row.append(who, body); els.chatLog.append(row); });
     els.chatLog.scrollTop = els.chatLog.scrollHeight; lastChatSignature = signature;
   }
-  const canChat = alive && phase === "day" && !(players.find(p => p.user_id === currentUserId)?.silenced);
+  const canChat = alive && phase === "day" && !dawnCutscene && !(players.find(p => p.user_id === currentUserId)?.silenced);
   els.chatInput.disabled = !canChat; els.chatForm.querySelector("button").disabled = !canChat;
   els.chatHint.textContent = !alive ? "You are dead. You can read chat but cannot send messages." : phase !== "day" ? "Public chat opens during the day." : canChat ? "Keep it public. Dead players can still read the conversation." : "You are silenced and cannot speak this day.";
 }
@@ -405,7 +429,7 @@ els.neutralEnabled?.addEventListener("change", () => {
 });
 els.create.addEventListener("click", createRoom); els.join.addEventListener("click", joinRoom); els.leave.addEventListener("click", leaveRoom); els.copy.addEventListener("click", copyCode);
 els.start.addEventListener("click", startGame); els.saveSettings.addEventListener("click", saveSettings); els.saveComposition.addEventListener("click", saveRoleComposition); els.launchTest.addEventListener("click", launchFifteenPlayerTest); els.submitAction.addEventListener("click", submitAction);
-els.actionType.addEventListener("change", () => { if (latestState?.game?.phase === "day") els.submitAction.querySelector("span").textContent = els.actionType.value === "mayor_eliminate" ? "Use mayor's decree" : "Submit vote"; }); els.advance.addEventListener("click", advancePhase); els.chatForm.addEventListener("submit", sendChat);
+els.actionType.addEventListener("change", () => { const day = latestState?.game?.phase === "day"; const skip = day && els.actionType.value === "skip"; els.actionTarget.classList.toggle("hidden", skip); const label = els.actionPanel.querySelector('label[for="action-target"]'); if (label) label.classList.toggle("hidden", skip); els.actionTarget.disabled = skip; if (day) els.submitAction.querySelector("span").textContent = els.actionType.value === "mayor_eliminate" ? "Use mayor's decree" : skip ? "Skip vote" : "Submit vote"; els.submitAction.disabled = !!latestState?.game?.self_action_submitted || (!skip && els.actionTarget.options.length === 0); }); els.advance.addEventListener("click", advancePhase); els.chatForm.addEventListener("submit", sendChat);
 buildTestAccountButtons();
 els.roomCode.addEventListener("input", () => { els.roomCode.value = els.roomCode.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8); });
 els.roomCode.addEventListener("keydown", event => { if (event.key === "Enter") joinRoom(); }); els.createName.addEventListener("keydown", event => { if (event.key === "Enter") createRoom(); }); els.joinName.addEventListener("keydown", event => { if (event.key === "Enter") joinRoom(); });

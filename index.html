@@ -112,7 +112,7 @@
             <label class="toggle-row" for="neutral-enabled"><span><strong>Enable Neutral roles</strong><small>50/50 chance of 1 Neutral or 2 Neutrals per match.</small></span><input id="neutral-enabled" type="checkbox"></label>
             <div class="composition-actions"><button id="save-composition" class="button button-secondary" type="button"><span>Save role settings</span><span aria-hidden="true">✓</span></button><span id="composition-total" class="microcopy">Automatic balanced setup</span></div>
           </div>
-          <div class="composition-box"><h3>Role composition preview</h3><div class="composition-grid"><div><strong id="comp-mafia">1</strong><span>Mafia</span></div><div><strong id="comp-town">3</strong><span>Town</span></div><div><strong id="comp-neutral">0</strong><span>Neutral</span></div></div><p class="microcopy">A Doctor is always included. The remaining Town slots are balanced automatically. Fifteen players always means 3 Mafia and 12 Town/Neutral slots.</p></div>
+          <div class="composition-box"><h3>Role composition preview</h3><div class="composition-grid"><div><strong id="comp-mafia">1</strong><span>Mafia</span></div><div><strong id="comp-town">3</strong><span>Town</span></div><div><strong id="comp-neutral">0</strong><span>Neutral</span></div></div><p class="microcopy">A Doctor is always included. The remaining Town slots are balanced automatically. Fifteen players always means 3 Mafia and 12 Town/Neutral slots.</p></div><h3>Role composition preview</h3><div class="composition-grid"><div><strong id="comp-mafia">1</strong><span>Mafia</span></div><div><strong id="comp-town">3</strong><span>Town</span></div><div><strong id="comp-neutral">0–1</strong><span>Neutral</span></div></div><p class="microcopy">Exact roles are randomly assigned when the host starts the game. Neutral is a chance at 7+ players.</p></div>
         </section>
         <button id="start-game" class="button button-primary hidden" type="button"><span>Start game</span><span aria-hidden="true">✦</span></button>
         <p id="start-hint" class="microcopy">The host can start when at least 4 players have joined.</p>
@@ -125,10 +125,9 @@
       </section>
       <section id="gameplay-panel" class="gameplay-panel hidden" aria-live="polite">
         <aside id="live-composition" class="live-composition hidden" aria-live="polite"><div><span class="muted-label">MATCH COMPOSITION</span><strong id="live-composition-text">3 Mafia · 12 Town</strong></div><p id="live-composition-detail" class="microcopy">Role counts are fixed for this match.</p></aside>
-        <div class="gameplay-main">
         <div class="phase-header"><div><p class="eyebrow" id="phase-eyebrow">LIVE MATCH</p><h3 id="phase-title">Night 1</h3></div><div class="phase-metrics"><span id="alive-count" class="count-pill">Alive: 5</span><span id="phase-timer" class="phase-timer">00:30</span></div></div>
         <div class="timer-track"><div id="timer-progress" class="timer-progress"></div></div>
-        <div id="reveal-banner" class="reveal-banner" aria-live="assertive"><span class="reveal-kicker">THE TOWN HAS SPOKEN</span><strong id="reveal-title"></strong><p id="reveal-copy"></p></div>
+        <div id="reveal-banner" class="reveal-banner" aria-live="assertive"><span class="reveal-kicker">NIGHT REPORT · CASUALTIES</span><strong id="reveal-title"></strong><p id="reveal-copy"></p></div>
         <div id="round-result" class="round-result"></div>
         <div id="private-result" class="private-result hidden"></div>
         <div id="action-panel" class="action-panel-inner hidden">
@@ -149,7 +148,6 @@
           <div id="chat-log" class="chat-log" aria-live="polite"></div>
           <form id="chat-form" class="chat-form"><input id="chat-input" maxlength="400" placeholder="Write a message..." aria-label="Chat message"><button class="button button-secondary" type="submit"><span>Send</span><span aria-hidden="true">↗</span></button></form>
           <p id="chat-hint" class="microcopy"></p>
-        </div>
         </div>
       </section>
       <p id="lobby-note" class="lobby-note">Secret roles, night abilities, investigations, voting, cooldowns, and public chat are handled by the game server.</p>
