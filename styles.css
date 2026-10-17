@@ -132,3 +132,16 @@ body[data-phase="day"] .phase-timer{color:#42316e;background:rgba(255,255,255,.8
 #advance-phase:not(.hidden){border-color:rgba(255,190,90,.45);color:#ffd18a;}
 
 .role-editor{margin-top:18px;padding-top:16px;border-top:1px solid rgba(151,130,204,.18)}.role-editor h3{font-size:13px;margin:0 0 8px}.role-count-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}.role-count-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 10px;border:1px solid rgba(183,158,255,.14);border-radius:9px;background:rgba(139,92,246,.045);font-size:12px}.role-count-row input{width:58px;min-width:0;padding:7px;background:#100e19;color:#eee;border:1px solid rgba(183,158,255,.25);border-radius:6px}.composition-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;flex-wrap:wrap}.composition-actions .button{margin:0}@media(max-width:560px){.role-count-grid{grid-template-columns:1fr}}
+/* Milestone 06: simplified role controls and always-visible in-game composition */
+.toggle-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 14px;border:1px solid rgba(183,158,255,.18);border-radius:11px;background:rgba(139,92,246,.06);cursor:pointer}
+.toggle-row span{display:grid;gap:5px}.toggle-row strong{font-size:12px;color:var(--text)}.toggle-row small{font-size:10px;line-height:1.5;color:var(--muted)}
+.toggle-row input{width:19px;height:19px;flex:none;accent-color:#a78bfa;cursor:pointer}
+.live-composition{display:grid;grid-template-columns:minmax(150px,.6fr) minmax(0,1.4fr);align-items:center;gap:14px;margin:0 0 16px;padding:14px 16px;border:1px solid rgba(183,158,255,.28);border-radius:12px;background:rgba(139,92,246,.08)}
+.live-composition strong{font-size:13px;line-height:1.5;color:#d7c7ff}.live-composition .microcopy{margin:0;overflow-wrap:anywhere}
+@media(max-width:600px){.live-composition{grid-template-columns:1fr;gap:7px}}
+
+/* Keep the composition panel alongside the active match on desktop. */
+#gameplay-panel:not(.hidden){display:grid;grid-template-columns:minmax(0,1fr) 250px;column-gap:18px;align-items:start}
+#gameplay-panel>.live-composition{grid-column:2;grid-row:1;position:sticky;top:16px;margin:0}
+#gameplay-panel>.gameplay-main{grid-column:1;grid-row:1;min-width:0}
+@media(max-width:760px){#gameplay-panel{grid-template-columns:minmax(0,1fr)}#gameplay-panel>.live-composition{grid-column:1;grid-row:1;position:static;margin:0 0 14px}#gameplay-panel>.gameplay-main{grid-column:1;grid-row:2}}

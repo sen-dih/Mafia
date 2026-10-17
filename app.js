@@ -11,7 +11,7 @@ const els = {
   gameplay: $("gameplay-panel"), phaseTitle: $("phase-title"), aliveCount: $("alive-count"), roundResult: $("round-result"), privateResult: $("private-result"),
   actionPanel: $("action-panel"), actionTarget: $("action-target"), actionType: $("action-type"), submitAction: $("submit-action"), actionHint: $("action-hint"),
   deadNote: $("dead-note"), phaseInstruction: $("phase-instruction"), advance: $("advance-phase"), chatLog: $("chat-log"), chatForm: $("chat-form"),
-  chatInput: $("chat-input"), chatHint: $("chat-hint"), daySeconds: $("day-seconds"), nightSeconds: $("night-seconds"), saveSettings: $("save-settings"), settingsHint: $("settings-hint"), lobbySettings: $("lobby-settings"), compMafia: $("comp-mafia"), compTown: $("comp-town"), compNeutral: $("comp-neutral"), roleCountGrid: $("role-count-grid"), saveComposition: $("save-composition"), compositionTotal: $("composition-total"), roleEditor: $("role-editor"), phaseTimer: $("phase-timer"), timerProgress: $("timer-progress"), phaseEyebrow: $("phase-eyebrow"), revealBanner: $("reveal-banner"), revealTitle: $("reveal-title"), revealCopy: $("reveal-copy")
+  chatInput: $("chat-input"), chatHint: $("chat-hint"), daySeconds: $("day-seconds"), nightSeconds: $("night-seconds"), saveSettings: $("save-settings"), settingsHint: $("settings-hint"), lobbySettings: $("lobby-settings"), compMafia: $("comp-mafia"), compTown: $("comp-town"), compNeutral: $("comp-neutral"), roleCountGrid: $("role-count-grid"), saveComposition: $("save-composition"), compositionTotal: $("composition-total"), roleEditor: $("role-editor"), neutralEnabled: $("neutral-enabled"), liveComposition: $("live-composition"), liveCompositionText: $("live-composition-text"), liveCompositionDetail: $("live-composition-detail"), phaseTimer: $("phase-timer"), timerProgress: $("timer-progress"), phaseEyebrow: $("phase-eyebrow"), revealBanner: $("reveal-banner"), revealTitle: $("reveal-title"), revealCopy: $("reveal-copy")
 };
 let supabaseClient = null, currentRoom = null, currentUserId = null, pollHandle = null, noticeHandle = null;
 let testAccounts = [], testModeActive = false, lastChatSignature = "", latestState = null, timerHandle = null, autoAdvanceBusy = false, lastRevealText = "";
@@ -98,71 +98,119 @@ function roleAction(role, alive, phase, game) {
   return null;
 }
 
-const COMPOSITION_ROLES = [
-  ["Assassin","Mafia"],["Blackmailer","Mafia"],["Ambusher","Mafia"],["Disguiser","Mafia"],
-  ["Crewmate","Town"],["Doctor","Town"],["Detective","Town"],["Guardian Angel","Town"],["Mayor","Town"],["Distractor","Town"],
-  ["Jester","Neutral"],["Vigilante","Neutral"]
-];
-const FIXED_15 = {"Assassin":1,"Blackmailer":1,"Ambusher":1,"Disguiser":0,"Crewmate":6,"Doctor":1,"Detective":1,"Guardian Angel":1,"Mayor":1,"Distractor":1,"Jester":0,"Vigilante":0};
-let compositionInputsBuilt = false, compositionPlayerCount = -1;
-function defaultComposition(count) {
-  if (count === 15) return {...FIXED_15};
-  const mafia = count >= 12 ? 3 : count >= 8 ? 2 : 1;
-  const town = count - mafia;
-  return {"Assassin":1,"Blackmailer":mafia-1,"Ambusher":0,"Disguiser":0,"Crewmate":Math.max(0,town-2),"Doctor":1,"Detective":1,"Guardian Angel":0,"Mayor":0,"Distractor":0,"Jester":0,"Vigilante":0};
+const MAFIA_EXTRAS = ["Blackmailer", "Ambusher", "Disguiser"];
+const TOWN_ROLES = ["Crewmate", "Doctor", "Detective", "Guardian Angel", "Mayor", "Distractor"];
+const NEUTRAL_ROLES = ["Jester", "Vigilante"];
+let compositionPlayerCount = -1;
+let currentComposition = null;
+let compositionSavedKey = "";
+function roomCompositionKey() { return `mafia-role-composition:${currentRoom?.code || "none"}`; }
+function randomItem(items) { return items[Math.floor(Math.random() * items.length)]; }
+function makeComposition(count, neutralsEnabled) {
+  const neutral = neutralsEnabled && count >= 7 ? (Math.random() < 0.5 ? 1 : 2) : 0;
+  const preferredMafia = count >= 12 ? 3 : count >= 8 ? 2 : 1;
+  const mafia = Math.max(1, Math.min(preferredMafia, Math.floor((count - neutral) / 4)));
+  const town = count - mafia - neutral;
+  const comp = Object.fromEntries([...MAFIA_EXTRAS, "Assassin", ...TOWN_ROLES, ...NEUTRAL_ROLES].map(r => [r, 0]));
+  comp.Assassin = 1;
+  for (let i = 1; i < mafia; i++) comp[randomItem(MAFIA_EXTRAS)]++;
+  comp.Doctor = 1;
+  const remainingTown = Math.max(0, town - 1);
+  for (let i = 0; i < remainingTown; i++) {
+    const choices = TOWN_ROLES.filter(r => r !== "Doctor");
+    comp[randomItem(choices)]++;
+  }
+  if (neutral > 0) {
+    const pool = [];
+    for (let i = 0; i < neutral; i++) pool.push(randomItem(NEUTRAL_ROLES));
+    pool.forEach(r => comp[r]++);
+  }
+  return comp;
+}
+function compositionStats(comp) {
+  const mafia = ["Assassin", ...MAFIA_EXTRAS].reduce((n, r) => n + (comp[r] || 0), 0);
+  const town = TOWN_ROLES.reduce((n, r) => n + (comp[r] || 0), 0);
+  const neutral = NEUTRAL_ROLES.reduce((n, r) => n + (comp[r] || 0), 0);
+  return { mafia, town, neutral, total: mafia + town + neutral };
+}
+function getRoomComposition(count, forceNew = false) {
+  const key = roomCompositionKey();
+  if (!forceNew && currentComposition && compositionPlayerCount === count) return currentComposition;
+  if (!forceNew) {
+    try {
+      const saved = JSON.parse(localStorage.getItem(key) || "null");
+      if (saved?.count === count && saved?.composition) {
+        currentComposition = saved.composition;
+        if (els.neutralEnabled) els.neutralEnabled.checked = (Number(saved.composition.Jester || 0) + Number(saved.composition.Vigilante || 0)) > 0;
+        compositionPlayerCount = count;
+        compositionSavedKey = saved.saved ? key : "";
+        return currentComposition;
+      }
+    } catch {}
+  }
+  currentComposition = makeComposition(count, !!els.neutralEnabled?.checked);
+  compositionPlayerCount = count;
+  compositionSavedKey = "";
+  try { localStorage.setItem(key, JSON.stringify({ count, composition: currentComposition, saved: false })); } catch {}
+  return currentComposition;
+}
+function renderComposition(comp, count) {
+  const s = compositionStats(comp);
+  els.compMafia.textContent = String(s.mafia);
+  els.compTown.textContent = String(s.town);
+  els.compNeutral.textContent = String(s.neutral);
+  els.compositionTotal.textContent = `${s.total}/${count} roles · Doctor guaranteed`;
+  els.compositionTotal.style.color = s.total === count && s.town >= 3 * s.mafia ? "#a7f3d0" : "#fca5a5";
+  if (els.liveCompositionText) {
+    els.liveCompositionText.textContent = `${s.mafia} Mafia · ${s.town} Town · ${s.neutral} Neutral`;
+    const lines = Object.entries(comp).filter(([, n]) => n > 0).map(([r, n]) => `${r}${n > 1 ? ` ×${n}` : ""}`);
+    els.liveCompositionDetail.textContent = lines.join(" · ");
+  }
+}
+function updateComposition(count) {
+  if (count < 4) {
+    els.compMafia.textContent = "1"; els.compTown.textContent = String(Math.max(0,count-1)); els.compNeutral.textContent = "0";
+    return;
+  }
+  const comp = getRoomComposition(count);
+  renderComposition(comp, count);
 }
 function buildCompositionInputs(count) {
-  if (!compositionInputsBuilt) {
-    els.roleCountGrid.replaceChildren();
-    COMPOSITION_ROLES.forEach(([role,side]) => {
-      const label=document.createElement("label"); label.className="role-count-row";
-      const name=document.createElement("span"); name.textContent=`${role} · ${side}`;
-      const input=document.createElement("input"); input.type="number"; input.min="0"; input.max="15"; input.step="1"; input.value="0"; input.dataset.role=role; input.setAttribute("aria-label",`${role} count`);
-      input.addEventListener("input", updateCompositionEditor);
-      label.append(name,input); els.roleCountGrid.append(label);
-    });
-    compositionInputsBuilt=true;
-  }
-  const defaults=defaultComposition(count);
-  els.roleCountGrid.querySelectorAll("input[data-role]").forEach(input=>input.value=String(defaults[input.dataset.role]||0));
-  compositionPlayerCount=count;
-  updateCompositionEditor();
-}
-function readComposition() {
-  const result={}; els.roleCountGrid.querySelectorAll("input[data-role]").forEach(input=>result[input.dataset.role]=Math.max(0,Math.min(15,Number.parseInt(input.value||"0",10)||0))); return result;
-}
-function updateCompositionEditor() {
-  if (!els.roleCountGrid) return;
-  const comp=readComposition(); let total=0,mafia=0,town=0,neutral=0;
-  for (const [role,side] of COMPOSITION_ROLES) { const n=comp[role]||0; total+=n; if(side==="Mafia")mafia+=n; else if(side==="Town")town+=n; else neutral+=n; }
-  const count=latestState?.players?.length || 0;
-  els.compositionTotal.textContent=`${total} / ${count} roles selected · Mafia ${mafia} · Town ${town} · Neutral ${neutral}`;
-  els.compositionTotal.style.color=total===count&&mafia>0&&town>=3*mafia?"#a7f3d0":"#fca5a5";
-  els.compMafia.textContent=String(mafia); els.compTown.textContent=String(town); els.compNeutral.textContent=String(neutral);
+  compositionPlayerCount = count;
+  getRoomComposition(count);
+  renderComposition(currentComposition, count);
 }
 async function saveRoleComposition() {
-  if(!currentRoom||!latestState)return;
-  if(currentUserId!==currentRoom.host_user_id)return showNotice("Only the host can edit role composition.",true);
-  const comp=readComposition(), count=(latestState.players||[]).length;
-  const total=Object.values(comp).reduce((a,b)=>a+b,0);
-  const mafia=["Assassin","Blackmailer","Ambusher","Disguiser"].reduce((n,r)=>n+comp[r],0);
-  const town=["Crewmate","Doctor","Detective","Guardian Angel","Mayor","Distractor"].reduce((n,r)=>n+comp[r],0);
-  if(total!==count)return showNotice(`Role counts total ${total}, but ${count} players are in the room.`,true);
-  if(mafia<1||town<3*mafia)return showNotice("Fairness rule: Town must have at least 3 players per Mafia member.",true);
-  if(count===15&&JSON.stringify(Object.keys(FIXED_15).sort().map(k=>[k,comp[k]]))!==JSON.stringify(Object.keys(FIXED_15).sort().map(k=>[k,FIXED_15[k]])))return showNotice("The 15-player composition is fixed.",true);
-  setBusy(els.saveComposition,true,"Saving composition…");
-  try { const {error}=await supabaseClient.rpc("set_private_role_composition",{p_room_code:currentRoom.code,p_composition:comp}); if(error)throw error; showNotice("Role composition saved. Roles will still be assigned randomly."); }
-  catch(error){showNotice(error.message||"Couldn't save role composition.",true);}
-  finally{setBusy(els.saveComposition,false);}
+  if (!currentRoom || !latestState) return;
+  if (currentUserId !== currentRoom.host_user_id) return showNotice("Only the host can save role settings.", true);
+  const count = (latestState.players || []).length;
+  if (count < 4) return showNotice("At least 4 players are needed.", true);
+  const comp = getRoomComposition(count);
+  const stats = compositionStats(comp);
+  if (stats.total !== count || stats.mafia < 1 || stats.town < 3 * stats.mafia || !comp.Doctor) {
+    currentComposition = makeComposition(count, !!els.neutralEnabled.checked);
+    renderComposition(currentComposition, count);
+    return showNotice("The composition was rebuilt to keep the match balanced.", true);
+  }
+  setBusy(els.saveComposition, true, "Saving…");
+  try {
+    const { error } = await supabaseClient.rpc("set_private_role_composition", { p_room_code: currentRoom.code, p_composition: comp });
+    if (error) throw error;
+    compositionSavedKey = roomCompositionKey();
+    try { localStorage.setItem(compositionSavedKey, JSON.stringify({ count, composition: comp, saved: true })); } catch {}
+    showNotice("Role settings saved. This roll stays fixed when you refresh.");
+    renderComposition(comp, count);
+  } catch (error) { showNotice(error.message || "Couldn't save role settings.", true); }
+  finally { setBusy(els.saveComposition, false); }
 }
-
-function updateComposition(count) {
-  if (count < 4) { els.compMafia.textContent = "1"; els.compTown.textContent = String(Math.max(0,count-1)); els.compNeutral.textContent = "0"; return; }
-  const mafia = count >= 14 ? 4 : count >= 11 ? 3 : count >= 8 ? 2 : 1;
-  const neutralPossible = count >= 7;
-  els.compMafia.textContent = String(mafia);
-  els.compTown.textContent = neutralPossible ? `${count-mafia-1}–${count-mafia}` : String(count-mafia);
-  els.compNeutral.textContent = neutralPossible ? "0–1" : "0";
+async function ensureCompositionSaved() {
+  const count = (latestState?.players || []).length;
+  if (compositionSavedKey === roomCompositionKey()) return;
+  const comp = getRoomComposition(count);
+  const { error } = await supabaseClient.rpc("set_private_role_composition", { p_room_code: currentRoom.code, p_composition: comp });
+  if (error) throw error;
+  compositionSavedKey = roomCompositionKey();
+  try { localStorage.setItem(compositionSavedKey, JSON.stringify({ count, composition: comp, saved: true })); } catch {}
 }
 function startTimerTicker() {
   if (timerHandle) clearInterval(timerHandle);
@@ -244,14 +292,16 @@ async function refreshLobby() {
   if (error) { showNotice(`Lobby refresh failed: ${error.message}`, true); return; }
   if (!data?.room) { stopPolling(); currentRoom = null; els.lobby.classList.add("hidden"); showNotice("This room is no longer available.", true); return; }
   currentRoom = { ...currentRoom, ...data.room }; latestState = data;
-  const players = data.players || []; renderPlayers(players, data.room.host_user_id); updateComposition(players.length);
+  const players = data.players || []; renderPlayers(players, data.room.host_user_id);
+  if (compositionPlayerCount !== players.length || !currentComposition) buildCompositionInputs(players.length);
+  else renderComposition(currentComposition, players.length);
   const isHost = currentUserId && currentUserId === data.room.host_user_id;
   const inGame = data.room.status === "in_game" || data.room.status === "finished";
-  if (!compositionInputsBuilt || (compositionPlayerCount !== players.length && !inGame)) buildCompositionInputs(players.length);
   els.roleEditor.classList.toggle("hidden", !isHost || inGame);
-  els.roleCountGrid.querySelectorAll("input").forEach(input=>input.disabled=!isHost||inGame||players.length===15);
-  els.saveComposition.classList.toggle("hidden",!isHost||inGame||players.length===15);
-  if(players.length===15){ els.compositionTotal.textContent="15 / 15 roles · Fixed balanced preset"; }
+  if (els.neutralEnabled) els.neutralEnabled.disabled = !isHost || inGame || players.length < 7;
+  els.saveComposition.classList.toggle("hidden", !isHost || inGame);
+  if (els.liveComposition) els.liveComposition.classList.toggle("hidden", !inGame);
+  if (players.length === 15) els.compositionTotal.textContent = "15-player preset · 3 Mafia · balanced automatically";
 
   els.start.classList.toggle("hidden", !isHost || inGame); els.start.disabled = players.length < 4;
   els.startHint.classList.toggle("hidden", !isHost || inGame);
@@ -289,7 +339,7 @@ async function joinRoom() {
 async function startGame() {
   if (!currentRoom || !requireConfig()) return; if (currentUserId !== currentRoom.host_user_id) return showNotice("Only the room host can start the game.", true);
   setBusy(els.start, true, "Assigning roles…");
-  try { const { error } = await supabaseClient.rpc("start_private_game", { p_room_code: currentRoom.code }); if (error) throw error; await refreshLobby(); showNotice("Game started. Your role is private."); }
+  try { await ensureCompositionSaved(); const { error } = await supabaseClient.rpc("start_private_game", { p_room_code: currentRoom.code }); if (error) throw error; await refreshLobby(); showNotice("Game started. Your role is private."); }
   catch (error) { showNotice(error.message || "Couldn't start the game.", true); } finally { setBusy(els.start, false); }
 }
 async function saveSettings() {
@@ -345,6 +395,14 @@ async function leaveRoom() {
   showNotice("You left this screen. Room membership remains until the room is cleaned up.");
 }
 async function copyCode() { if (!currentRoom) return; try { await navigator.clipboard.writeText(currentRoom.code); showNotice("Room code copied."); } catch { showNotice(`Room code: ${currentRoom.code}`); } }
+els.neutralEnabled?.addEventListener("change", () => {
+  if (!currentRoom) return;
+  const count = latestState?.players?.length || 0;
+  currentComposition = makeComposition(count, !!els.neutralEnabled.checked);
+  compositionPlayerCount = count; compositionSavedKey = "";
+  try { localStorage.setItem(roomCompositionKey(), JSON.stringify({ count, composition: currentComposition, saved: false })); } catch {}
+  renderComposition(currentComposition, count);
+});
 els.create.addEventListener("click", createRoom); els.join.addEventListener("click", joinRoom); els.leave.addEventListener("click", leaveRoom); els.copy.addEventListener("click", copyCode);
 els.start.addEventListener("click", startGame); els.saveSettings.addEventListener("click", saveSettings); els.saveComposition.addEventListener("click", saveRoleComposition); els.launchTest.addEventListener("click", launchFifteenPlayerTest); els.submitAction.addEventListener("click", submitAction);
 els.actionType.addEventListener("change", () => { if (latestState?.game?.phase === "day") els.submitAction.querySelector("span").textContent = els.actionType.value === "mayor_eliminate" ? "Use mayor's decree" : "Submit vote"; }); els.advance.addEventListener("click", advancePhase); els.chatForm.addEventListener("submit", sendChat);

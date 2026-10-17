@@ -107,12 +107,12 @@
           <div class="settings-grid"><div><label for="day-seconds">Day discussion</label><select id="day-seconds" class="target-select"><option value="60">1 minute</option><option value="90" selected>1 min 30 sec</option><option value="120">2 minutes</option><option value="180">3 minutes</option><option value="240">4 minutes</option><option value="300">5 minutes</option></select></div><div><label for="night-seconds">Night actions</label><select id="night-seconds" class="target-select"><option value="15">15 seconds</option><option value="30" selected>30 seconds</option><option value="45">45 seconds</option><option value="60">1 minute</option><option value="90">1 min 30 sec</option><option value="120">2 minutes</option></select></div></div>
           <button id="save-settings" class="button button-secondary" type="button"><span>Save match settings</span><span aria-hidden="true">⚙</span></button><p id="settings-hint" class="microcopy">Only the host can change these settings, and only before the match begins.</p>
           <div class="role-editor" id="role-editor">
-            <h3>Host role composition</h3>
-            <p class="microcopy">Choose how many of each role to include. Counts must equal the number of players. Town must be at least 3× Mafia. At 15 players, the balanced preset is locked.</p>
-            <div id="role-count-grid" class="role-count-grid"></div>
-            <div class="composition-actions"><button id="save-composition" class="button button-secondary" type="button"><span>Save role composition</span><span aria-hidden="true">✓</span></button><span id="composition-total" class="microcopy">0 / 0 roles selected</span></div>
+            <h3>Quick role settings</h3>
+            <p class="microcopy">Automatic balanced setup. Assassin is guaranteed; each of the other two Mafia slots is randomly chosen with equal chance from Blackmailer, Ambusher and Disguiser.</p>
+            <label class="toggle-row" for="neutral-enabled"><span><strong>Enable Neutral roles</strong><small>50/50 chance of 1 Neutral or 2 Neutrals per match.</small></span><input id="neutral-enabled" type="checkbox"></label>
+            <div class="composition-actions"><button id="save-composition" class="button button-secondary" type="button"><span>Save role settings</span><span aria-hidden="true">✓</span></button><span id="composition-total" class="microcopy">Automatic balanced setup</span></div>
           </div>
-          <div class="composition-box"><h3>Role composition preview</h3><div class="composition-grid"><div><strong id="comp-mafia">1</strong><span>Mafia</span></div><div><strong id="comp-town">3</strong><span>Town</span></div><div><strong id="comp-neutral">0–1</strong><span>Neutral</span></div></div><p class="microcopy">Exact roles are randomly assigned when the host starts the game. Neutral is a chance at 7+ players.</p></div>
+          <div class="composition-box"><h3>Role composition preview</h3><div class="composition-grid"><div><strong id="comp-mafia">1</strong><span>Mafia</span></div><div><strong id="comp-town">3</strong><span>Town</span></div><div><strong id="comp-neutral">0</strong><span>Neutral</span></div></div><p class="microcopy">A Doctor is always included. The remaining Town slots are balanced automatically. Fifteen players always means 3 Mafia and 12 Town/Neutral slots.</p></div>
         </section>
         <button id="start-game" class="button button-primary hidden" type="button"><span>Start game</span><span aria-hidden="true">✦</span></button>
         <p id="start-hint" class="microcopy">The host can start when at least 4 players have joined.</p>
@@ -124,6 +124,8 @@
         <p class="role-warning">Keep this role secret. Other players can only see their own role.</p>
       </section>
       <section id="gameplay-panel" class="gameplay-panel hidden" aria-live="polite">
+        <aside id="live-composition" class="live-composition hidden" aria-live="polite"><div><span class="muted-label">MATCH COMPOSITION</span><strong id="live-composition-text">3 Mafia · 12 Town</strong></div><p id="live-composition-detail" class="microcopy">Role counts are fixed for this match.</p></aside>
+        <div class="gameplay-main">
         <div class="phase-header"><div><p class="eyebrow" id="phase-eyebrow">LIVE MATCH</p><h3 id="phase-title">Night 1</h3></div><div class="phase-metrics"><span id="alive-count" class="count-pill">Alive: 5</span><span id="phase-timer" class="phase-timer">00:30</span></div></div>
         <div class="timer-track"><div id="timer-progress" class="timer-progress"></div></div>
         <div id="reveal-banner" class="reveal-banner" aria-live="assertive"><span class="reveal-kicker">THE TOWN HAS SPOKEN</span><strong id="reveal-title"></strong><p id="reveal-copy"></p></div>
@@ -147,6 +149,7 @@
           <div id="chat-log" class="chat-log" aria-live="polite"></div>
           <form id="chat-form" class="chat-form"><input id="chat-input" maxlength="400" placeholder="Write a message..." aria-label="Chat message"><button class="button button-secondary" type="submit"><span>Send</span><span aria-hidden="true">↗</span></button></form>
           <p id="chat-hint" class="microcopy"></p>
+        </div>
         </div>
       </section>
       <p id="lobby-note" class="lobby-note">Secret roles, night abilities, investigations, voting, cooldowns, and public chat are handled by the game server.</p>
