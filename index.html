@@ -143,6 +143,13 @@
           <p id="phase-instruction" class="microcopy">Your actions are private.</p>
           <button id="advance-phase" class="button button-secondary hidden" type="button"><span>TEST: Force next phase</span><span aria-hidden="true">✦</span></button>
         </div>
+        <section id="mafia-panel" class="mafia-panel hidden" aria-label="Secret Mafia room">
+          <div class="chat-heading"><h3>☠ Mafia night chat</h3><span class="microcopy">Secret · Mafia only</span></div>
+          <div id="mafia-team" class="mafia-team"></div>
+          <div id="mafia-chat-log" class="chat-log mafia-chat-log" aria-live="polite"></div>
+          <form id="mafia-chat-form" class="chat-form"><input id="mafia-chat-input" maxlength="400" placeholder="Message your Mafia team..." aria-label="Secret Mafia message"><button class="button button-secondary" type="submit"><span>Send</span><span aria-hidden="true">↗</span></button></form>
+          <p id="mafia-chat-hint" class="microcopy">Only living Mafia members can send messages at night. Messages are never added to Town chat.</p>
+        </section>
         <div class="chat-panel">
           <div class="chat-heading"><h3>Town chat</h3><span class="microcopy">Dead players can still read</span></div>
           <div id="chat-log" class="chat-log" aria-live="polite"></div>
@@ -157,7 +164,7 @@
 
     <footer class="footer">
       <span>BUILT FOR SECRETS, NOT SCREENSHOTS.</span>
-      <span>Milestone 04 · Timed rounds, reveal events + role composition</span>
+      <span>Milestone 09 · Mafia team, secret night chat + friendly-fire protection</span>
     </footer>
   </main>
 </body>

@@ -161,3 +161,14 @@ body.dawn-cutscene-active .phase-header,body.dawn-cutscene-active .timer-track,b
 .dawn-cutscene .live-composition{opacity:1}
 @keyframes dawnCurtain{0%{opacity:0;transform:translateY(-20px);filter:blur(5px)}25%{opacity:1;transform:translateY(0);filter:blur(0)}70%{opacity:1}100%{opacity:1;transform:translateY(0)}}
 @media(prefers-reduced-motion:reduce){body,body[data-phase="day"],.reveal-banner{transition:none!important;animation:none!important}}
+
+
+/* Secret Mafia-only night communications */
+.mafia-panel{margin:18px 0;padding:18px;border:1px solid rgba(210,80,110,.35);border-radius:18px;background:linear-gradient(145deg,rgba(80,18,37,.24),rgba(16,12,24,.92));box-shadow:0 0 32px rgba(180,25,70,.08)}
+.mafia-panel h3{margin:0;color:#ffd3df;font-size:15px;letter-spacing:.02em}
+.mafia-team{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}
+.mafia-team-member{font-size:11px;padding:6px 9px;border-radius:999px;background:rgba(180,45,78,.15);border:1px solid rgba(210,80,110,.2);color:#f4d8e0}
+.mafia-team-member.self{border-color:rgba(255,190,205,.55);font-weight:700}
+.mafia-chat-log{max-height:210px;min-height:65px}
+.mafia-panel .chat-form{margin-top:10px}
+.mafia-panel .microcopy{font-size:11px;line-height:1.6}

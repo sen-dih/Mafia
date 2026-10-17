@@ -11,10 +11,10 @@ const els = {
   gameplay: $("gameplay-panel"), phaseTitle: $("phase-title"), aliveCount: $("alive-count"), roundResult: $("round-result"), privateResult: $("private-result"),
   actionPanel: $("action-panel"), actionTarget: $("action-target"), actionType: $("action-type"), submitAction: $("submit-action"), actionHint: $("action-hint"),
   deadNote: $("dead-note"), phaseInstruction: $("phase-instruction"), advance: $("advance-phase"), chatLog: $("chat-log"), chatForm: $("chat-form"),
-  chatInput: $("chat-input"), chatHint: $("chat-hint"), daySeconds: $("day-seconds"), nightSeconds: $("night-seconds"), saveSettings: $("save-settings"), settingsHint: $("settings-hint"), lobbySettings: $("lobby-settings"), compMafia: $("comp-mafia"), compTown: $("comp-town"), compNeutral: $("comp-neutral"), roleCountGrid: $("role-count-grid"), saveComposition: $("save-composition"), compositionTotal: $("composition-total"), roleEditor: $("role-editor"), neutralEnabled: $("neutral-enabled"), liveComposition: $("live-composition"), liveCompositionText: $("live-composition-text"), liveCompositionDetail: $("live-composition-detail"), phaseTimer: $("phase-timer"), timerProgress: $("timer-progress"), phaseEyebrow: $("phase-eyebrow"), revealBanner: $("reveal-banner"), revealTitle: $("reveal-title"), revealCopy: $("reveal-copy")
+  chatInput: $("chat-input"), chatHint: $("chat-hint"), mafiaPanel: $("mafia-panel"), mafiaTeam: $("mafia-team"), mafiaChatLog: $("mafia-chat-log"), mafiaChatForm: $("mafia-chat-form"), mafiaChatInput: $("mafia-chat-input"), mafiaChatHint: $("mafia-chat-hint"), daySeconds: $("day-seconds"), nightSeconds: $("night-seconds"), saveSettings: $("save-settings"), settingsHint: $("settings-hint"), lobbySettings: $("lobby-settings"), compMafia: $("comp-mafia"), compTown: $("comp-town"), compNeutral: $("comp-neutral"), roleCountGrid: $("role-count-grid"), saveComposition: $("save-composition"), compositionTotal: $("composition-total"), roleEditor: $("role-editor"), neutralEnabled: $("neutral-enabled"), liveComposition: $("live-composition"), liveCompositionText: $("live-composition-text"), liveCompositionDetail: $("live-composition-detail"), phaseTimer: $("phase-timer"), timerProgress: $("timer-progress"), phaseEyebrow: $("phase-eyebrow"), revealBanner: $("reveal-banner"), revealTitle: $("reveal-title"), revealCopy: $("reveal-copy")
 };
 let supabaseClient = null, currentRoom = null, currentUserId = null, pollHandle = null, noticeHandle = null;
-let testAccounts = [], testModeActive = false, lastChatSignature = "", latestState = null, timerHandle = null, autoAdvanceBusy = false, lastRevealText = "", lastRenderedPhase = null;
+let testAccounts = [], testModeActive = false, lastMafiaChatSignature = "", lastChatSignature = "", latestState = null, timerHandle = null, autoAdvanceBusy = false, lastRevealText = "", lastRenderedPhase = null;
 function buildTestAccountButtons() {
   const holder = document.querySelector(".test-account-buttons");
   if (!holder) return;
@@ -309,6 +309,16 @@ function renderGameplay(data) {
   const canChat = alive && phase === "day" && !dawnCutscene && !(players.find(p => p.user_id === currentUserId)?.silenced);
   els.chatInput.disabled = !canChat; els.chatForm.querySelector("button").disabled = !canChat;
   els.chatHint.textContent = !alive ? "You are dead. You can read chat but cannot send messages." : phase !== "day" ? "Public chat opens during the day." : canChat ? "Keep it public. Dead players can still read the conversation." : "You are silenced and cannot speak this day.";
+  const isMafia = ["Assassin", "Blackmailer", "Ambusher", "Disguiser"].includes(role);
+  els.mafiaPanel.classList.toggle("hidden", !isMafia || phase === "finished");
+  if (isMafia) {
+    const team = data.mafia_team || []; els.mafiaTeam.replaceChildren();
+    team.forEach(member => { const tag = document.createElement("span"); tag.className = "mafia-team-member" + (member.user_id === currentUserId ? " self" : ""); tag.textContent = `${member.display_name}${member.user_id === currentUserId ? " (you)" : ""}${member.is_alive === false ? " · dead" : ""} · ${member.role}`; els.mafiaTeam.append(tag); });
+    const mafiaChat = data.mafia_chat || []; const mafiaSig = JSON.stringify(mafiaChat.map(m => [m.created_at, m.display_name, m.body]));
+    if (mafiaSig !== lastMafiaChatSignature) { els.mafiaChatLog.replaceChildren(); mafiaChat.forEach(message => { const row = document.createElement("div"); row.className = "chat-message"; const who = document.createElement("strong"); who.textContent = message.display_name; const body = document.createElement("span"); body.textContent = message.body; row.append(who, body); els.mafiaChatLog.append(row); }); els.mafiaChatLog.scrollTop = els.mafiaChatLog.scrollHeight; lastMafiaChatSignature = mafiaSig; }
+    const canMafiaChat = alive && phase === "night"; els.mafiaChatInput.disabled = !canMafiaChat; els.mafiaChatForm.querySelector("button").disabled = !canMafiaChat;
+    els.mafiaChatHint.textContent = !alive ? "You can see the Mafia team, but dead players cannot send secret messages." : phase !== "night" ? "Secret chat is available only at night." : "Only Mafia members can read this chat. It is separate from Town chat.";
+  }
 }
 async function refreshLobby() {
   if (!currentRoom) return;
@@ -390,6 +400,11 @@ async function sendChat(event) {
   try { const { error } = await supabaseClient.rpc("send_private_chat", { p_room_code: currentRoom.code, p_body: body }); if (error) throw error; els.chatInput.value = ""; await refreshLobby(); }
   catch (error) { showNotice(error.message || "Couldn't send message.", true); }
 }
+async function sendMafiaChat(event) {
+  event.preventDefault(); if (!currentRoom) return; const body = els.mafiaChatInput.value.trim(); if (!body) return;
+  try { const { error } = await supabaseClient.rpc("send_private_mafia_chat", { p_room_code: currentRoom.code, p_body: body }); if (error) throw error; els.mafiaChatInput.value = ""; await refreshLobby(); }
+  catch (error) { showNotice(error.message || "Couldn't send secret Mafia message.", true); }
+}
 async function launchFifteenPlayerTest() {
   if (!requireConfig()) return; if (currentRoom) return showNotice("Leave your current room before launching a test room.", true);
   setBusy(els.launchTest, true, "Creating test accounts…"); els.launchTest.disabled = true; const createdAccounts = [];
@@ -429,7 +444,7 @@ els.neutralEnabled?.addEventListener("change", () => {
 });
 els.create.addEventListener("click", createRoom); els.join.addEventListener("click", joinRoom); els.leave.addEventListener("click", leaveRoom); els.copy.addEventListener("click", copyCode);
 els.start.addEventListener("click", startGame); els.saveSettings.addEventListener("click", saveSettings); els.saveComposition.addEventListener("click", saveRoleComposition); els.launchTest.addEventListener("click", launchFifteenPlayerTest); els.submitAction.addEventListener("click", submitAction);
-els.actionType.addEventListener("change", () => { const day = latestState?.game?.phase === "day"; const skip = day && els.actionType.value === "skip"; els.actionTarget.classList.toggle("hidden", skip); const label = els.actionPanel.querySelector('label[for="action-target"]'); if (label) label.classList.toggle("hidden", skip); els.actionTarget.disabled = skip; if (day) els.submitAction.querySelector("span").textContent = els.actionType.value === "mayor_eliminate" ? "Use mayor's decree" : skip ? "Skip vote" : "Submit vote"; els.submitAction.disabled = !!latestState?.game?.self_action_submitted || (!skip && els.actionTarget.options.length === 0); }); els.advance.addEventListener("click", advancePhase); els.chatForm.addEventListener("submit", sendChat);
+els.actionType.addEventListener("change", () => { const day = latestState?.game?.phase === "day"; const skip = day && els.actionType.value === "skip"; els.actionTarget.classList.toggle("hidden", skip); const label = els.actionPanel.querySelector('label[for="action-target"]'); if (label) label.classList.toggle("hidden", skip); els.actionTarget.disabled = skip; if (day) els.submitAction.querySelector("span").textContent = els.actionType.value === "mayor_eliminate" ? "Use mayor's decree" : skip ? "Skip vote" : "Submit vote"; els.submitAction.disabled = !!latestState?.game?.self_action_submitted || (!skip && els.actionTarget.options.length === 0); }); els.advance.addEventListener("click", advancePhase); els.chatForm.addEventListener("submit", sendChat); els.mafiaChatForm.addEventListener("submit", sendMafiaChat);
 buildTestAccountButtons();
 els.roomCode.addEventListener("input", () => { els.roomCode.value = els.roomCode.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8); });
 els.roomCode.addEventListener("keydown", event => { if (event.key === "Enter") joinRoom(); }); els.createName.addEventListener("keydown", event => { if (event.key === "Enter") createRoom(); }); els.joinName.addEventListener("keydown", event => { if (event.key === "Enter") joinRoom(); });
