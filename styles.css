@@ -172,3 +172,37 @@ body.dawn-cutscene-active .phase-header,body.dawn-cutscene-active .timer-track,b
 .mafia-chat-log{max-height:210px;min-height:65px}
 .mafia-panel .chat-form{margin-top:10px}
 .mafia-panel .microcopy{font-size:11px;line-height:1.6}
+
+
+/* Milestone 10: make the dawn casualty reveal unmistakably animated. */
+.reveal-banner{position:relative;isolation:isolate;will-change:opacity,transform;}
+.reveal-banner.reveal-show{animation:revealEntrance .95s cubic-bezier(.2,.8,.2,1) both,revealGlow 2.8s ease-in-out .6s 1;}
+.reveal-banner.reveal-show .reveal-kicker{animation:revealTextIn .55s ease-out .2s both;}
+.reveal-banner.reveal-show #reveal-title{animation:revealTextIn .75s cubic-bezier(.2,.8,.2,1) .35s both;}
+.reveal-casualties{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;}
+.reveal-casualties:empty{display:none;}
+.reveal-casualty{min-width:130px;flex:0 1 auto;display:grid;gap:5px;padding:12px 15px;border-radius:11px;border:1px solid rgba(160,70,90,.28);background:linear-gradient(135deg,rgba(255,255,255,.78),rgba(246,226,222,.52));color:#171717;box-shadow:0 8px 22px rgba(35,20,20,.07);animation:casualtyRise .75s cubic-bezier(.2,.8,.2,1) calc(.55s + var(--casualty-index,0)*.22s) both;}
+.reveal-casualty strong{font-size:clamp(15px,2vw,20px);letter-spacing:.01em;color:#171717;}
+.reveal-casualty span{font:10px 'DM Mono',monospace;letter-spacing:.13em;text-transform:uppercase;color:#54434a;}
+.reveal-banner.reveal-show #reveal-copy{animation:revealTextIn .65s ease-out .85s both;}
+body.dawn-cutscene-active .reveal-banner{animation:dawnCurtain 5.8s ease both,revealGlow 3s ease-in-out .6s 1;}
+@keyframes revealEntrance{0%{opacity:0;transform:translateY(-26px) scale(.975);filter:blur(8px);clip-path:inset(0 0 100% 0)}60%{opacity:1;filter:blur(0);clip-path:inset(0 0 0 0)}100%{opacity:1;transform:translateY(0) scale(1);filter:blur(0);clip-path:inset(0 0 0 0)}}
+@keyframes revealTextIn{0%{opacity:0;transform:translateY(9px);letter-spacing:.22em}100%{opacity:1;transform:translateY(0)}}
+@keyframes casualtyRise{0%{opacity:0;transform:translateY(18px) scale(.94);filter:blur(3px)}75%{opacity:1;transform:translateY(-2px) scale(1.01);filter:blur(0)}100%{opacity:1;transform:translateY(0) scale(1)}}
+@media(prefers-reduced-motion:reduce){.reveal-banner.reveal-show,.reveal-banner.reveal-show *,.reveal-casualty{animation:none!important;filter:none!important;clip-path:none!important;}}
+
+/* Milestone 11: full-screen, cinematic dawn reveal that reliably sits above gameplay. */
+body.dawn-cutscene-active::before{content:"";position:fixed;inset:0;z-index:9998;background:linear-gradient(135deg,rgba(225,220,199,.97),rgba(244,241,222,.98) 48%,rgba(225,225,231,.97));animation:dawnLightBloom 5.8s ease both;pointer-events:auto}
+body.dawn-cutscene-active .reveal-banner{position:fixed;left:50%;top:50%;transform:translate(-50%,-46%);width:min(760px,calc(100vw - 32px));max-height:min(78vh,720px);overflow-y:auto;z-index:9999;margin:0;padding:clamp(22px,4vw,42px);border:1px solid rgba(63,53,37,.24);border-radius:20px;background:linear-gradient(145deg,rgba(255,254,246,.98),rgba(241,237,218,.98));box-shadow:0 35px 110px rgba(48,42,26,.28),0 0 0 1px rgba(255,255,255,.5) inset;color:#171717;opacity:1;animation:dawnBannerEnter .9s cubic-bezier(.16,1,.3,1) both,revealGlow 3s ease-in-out .8s 1}
+body.dawn-cutscene-active .reveal-banner .reveal-kicker,body.dawn-cutscene-active .reveal-banner strong,body.dawn-cutscene-active .reveal-banner p{color:#171717}
+body.dawn-cutscene-active .reveal-banner .reveal-kicker{font-size:11px;letter-spacing:.22em;color:#766b51}
+body.dawn-cutscene-active .reveal-banner #reveal-title{font-size:clamp(28px,5vw,46px);line-height:1.08;margin:8px 0 12px}
+body.dawn-cutscene-active .reveal-casualty{animation:casualtyRise .75s cubic-bezier(.2,.8,.2,1) calc(.65s + var(--casualty-index,0)*.32s) both}
+.reveal-mafia-casualty{border-color:rgba(147,38,55,.38);background:linear-gradient(135deg,#fff9f4,#f2ded8)}
+.reveal-mafia-role{color:#8c2435!important;font-weight:800}
+.reveal-hidden-role{color:#514b40!important;letter-spacing:.08em}
+.reveal-save-note{flex-basis:100%;margin-top:5px;padding:12px 14px;border-radius:10px;background:rgba(62,124,81,.12);border:1px solid rgba(62,124,81,.25);color:#245d37;font-size:13px;font-weight:700;animation:revealTextIn .7s ease-out 1.1s both}
+@keyframes dawnLightBloom{0%{opacity:0;background:rgba(20,23,38,.05)}35%{opacity:.72}100%{opacity:1}}
+@keyframes dawnBannerEnter{0%{opacity:0;transform:translate(-50%,-42%) scale(.94);filter:blur(10px);clip-path:inset(0 0 100% 0)}65%{opacity:1;filter:blur(0);clip-path:inset(0 0 0 0)}100%{opacity:1;transform:translate(-50%,-46%) scale(1);filter:blur(0);clip-path:inset(0 0 0 0)}}
+@media(max-width:600px){body.dawn-cutscene-active .reveal-banner{width:calc(100vw - 22px);max-height:82vh;padding:22px 17px;border-radius:15px}}
+@media(prefers-reduced-motion:reduce){body.dawn-cutscene-active::before,body.dawn-cutscene-active .reveal-banner,.reveal-save-note{animation:none!important}}

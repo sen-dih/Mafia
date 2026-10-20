@@ -125,9 +125,10 @@
       </section>
       <section id="gameplay-panel" class="gameplay-panel hidden" aria-live="polite">
         <aside id="live-composition" class="live-composition hidden" aria-live="polite"><div><span class="muted-label">MATCH COMPOSITION</span><strong id="live-composition-text">3 Mafia · 12 Town</strong></div><p id="live-composition-detail" class="microcopy">Role counts are fixed for this match.</p></aside>
+        <div class="gameplay-main">
         <div class="phase-header"><div><p class="eyebrow" id="phase-eyebrow">LIVE MATCH</p><h3 id="phase-title">Night 1</h3></div><div class="phase-metrics"><span id="alive-count" class="count-pill">Alive: 5</span><span id="phase-timer" class="phase-timer">00:30</span></div></div>
         <div class="timer-track"><div id="timer-progress" class="timer-progress"></div></div>
-        <div id="reveal-banner" class="reveal-banner" aria-live="assertive"><span class="reveal-kicker">NIGHT REPORT · CASUALTIES</span><strong id="reveal-title"></strong><p id="reveal-copy"></p></div>
+        <div id="reveal-banner" class="reveal-banner" aria-live="assertive"><span class="reveal-kicker">NIGHT REPORT · CASUALTIES</span><strong id="reveal-title"></strong><div id="reveal-casualties" class="reveal-casualties"></div><p id="reveal-copy"></p></div>
         <div id="round-result" class="round-result"></div>
         <div id="private-result" class="private-result hidden"></div>
         <div id="action-panel" class="action-panel-inner hidden">
@@ -156,6 +157,7 @@
           <form id="chat-form" class="chat-form"><input id="chat-input" maxlength="400" placeholder="Write a message..." aria-label="Chat message"><button class="button button-secondary" type="submit"><span>Send</span><span aria-hidden="true">↗</span></button></form>
           <p id="chat-hint" class="microcopy"></p>
         </div>
+        </div>
       </section>
       <p id="lobby-note" class="lobby-note">Secret roles, night abilities, investigations, voting, cooldowns, and public chat are handled by the game server.</p>
     </section>
@@ -164,7 +166,7 @@
 
     <footer class="footer">
       <span>BUILT FOR SECRETS, NOT SCREENSHOTS.</span>
-      <span>Milestone 09 · Mafia team, secret night chat + friendly-fire protection</span>
+      <span>Milestone 11 · cinematic dawn reveal + gameplay fixes</span>
     </footer>
   </main>
 </body>

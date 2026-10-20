@@ -11,7 +11,7 @@ const els = {
   gameplay: $("gameplay-panel"), phaseTitle: $("phase-title"), aliveCount: $("alive-count"), roundResult: $("round-result"), privateResult: $("private-result"),
   actionPanel: $("action-panel"), actionTarget: $("action-target"), actionType: $("action-type"), submitAction: $("submit-action"), actionHint: $("action-hint"),
   deadNote: $("dead-note"), phaseInstruction: $("phase-instruction"), advance: $("advance-phase"), chatLog: $("chat-log"), chatForm: $("chat-form"),
-  chatInput: $("chat-input"), chatHint: $("chat-hint"), mafiaPanel: $("mafia-panel"), mafiaTeam: $("mafia-team"), mafiaChatLog: $("mafia-chat-log"), mafiaChatForm: $("mafia-chat-form"), mafiaChatInput: $("mafia-chat-input"), mafiaChatHint: $("mafia-chat-hint"), daySeconds: $("day-seconds"), nightSeconds: $("night-seconds"), saveSettings: $("save-settings"), settingsHint: $("settings-hint"), lobbySettings: $("lobby-settings"), compMafia: $("comp-mafia"), compTown: $("comp-town"), compNeutral: $("comp-neutral"), roleCountGrid: $("role-count-grid"), saveComposition: $("save-composition"), compositionTotal: $("composition-total"), roleEditor: $("role-editor"), neutralEnabled: $("neutral-enabled"), liveComposition: $("live-composition"), liveCompositionText: $("live-composition-text"), liveCompositionDetail: $("live-composition-detail"), phaseTimer: $("phase-timer"), timerProgress: $("timer-progress"), phaseEyebrow: $("phase-eyebrow"), revealBanner: $("reveal-banner"), revealTitle: $("reveal-title"), revealCopy: $("reveal-copy")
+  chatInput: $("chat-input"), chatHint: $("chat-hint"), mafiaPanel: $("mafia-panel"), mafiaTeam: $("mafia-team"), mafiaChatLog: $("mafia-chat-log"), mafiaChatForm: $("mafia-chat-form"), mafiaChatInput: $("mafia-chat-input"), mafiaChatHint: $("mafia-chat-hint"), daySeconds: $("day-seconds"), nightSeconds: $("night-seconds"), saveSettings: $("save-settings"), settingsHint: $("settings-hint"), lobbySettings: $("lobby-settings"), compMafia: $("comp-mafia"), compTown: $("comp-town"), compNeutral: $("comp-neutral"), roleCountGrid: $("role-count-grid"), saveComposition: $("save-composition"), compositionTotal: $("composition-total"), roleEditor: $("role-editor"), neutralEnabled: $("neutral-enabled"), liveComposition: $("live-composition"), liveCompositionText: $("live-composition-text"), liveCompositionDetail: $("live-composition-detail"), phaseTimer: $("phase-timer"), timerProgress: $("timer-progress"), phaseEyebrow: $("phase-eyebrow"), revealBanner: $("reveal-banner"), revealTitle: $("reveal-title"), revealCopy: $("reveal-copy"), revealCasualties: $("reveal-casualties")
 };
 let supabaseClient = null, currentRoom = null, currentUserId = null, pollHandle = null, noticeHandle = null;
 let testAccounts = [], testModeActive = false, lastMafiaChatSignature = "", lastChatSignature = "", latestState = null, timerHandle = null, autoAdvanceBusy = false, lastRevealText = "", lastRenderedPhase = null;
@@ -228,10 +228,13 @@ function startTimerTicker() {
   if (timerHandle) clearInterval(timerHandle);
   timerHandle = setInterval(async () => {
     const game = latestState?.game;
-    if (!game || game.phase === "finished" || !game.phase_started_at) return;
+    if (!game || game.phase === "finished") return;
+    if (!game.phase_started_at) { els.phaseTimer.textContent = "--:--"; return; }
     const duration = Number(game.phase === "day" ? game.day_seconds : game.night_seconds) || (game.phase === "day" ? 90 : 30);
-    const elapsed = Math.max(0, (Date.now() - new Date(game.phase_started_at).getTime()) / 1000);
-    const waitingForDawn = game.phase === "day" && Date.now() < new Date(game.phase_started_at).getTime();
+    const startMs = new Date(game.phase_started_at).getTime();
+    if (!Number.isFinite(startMs)) { els.phaseTimer.textContent = "--:--"; return; }
+    const elapsed = Math.max(0, (Date.now() - startMs) / 1000);
+    const waitingForDawn = game.phase === "day" && Date.now() < startMs;
     els.phaseTimer.classList.toggle("hidden", waitingForDawn);
     els.timerProgress.classList.toggle("hidden", waitingForDawn);
     if (waitingForDawn) { els.phaseTimer.textContent = "DAWN"; return; }
@@ -245,22 +248,83 @@ function startTimerTicker() {
     }
   }, 250);
 }
+function renderRevealReport(result) {
+  const text = String(result || "The night has ended.");
+  els.revealCasualties?.replaceChildren();
+  // Server report format: "Name died overnight. Role: Assassin. ..."
+  // Reveal Mafia identities only; other factions get a name-only casualty card.
+  const pattern = /(.+?) died overnight\. Role: ([^.]+)\./g;
+  const casualties = [...text.matchAll(pattern)];
+  let copy = text;
+  const mafiaRoles = new Set(["Assassin", "Blackmailer", "Ambusher", "Disguiser"]);
+  casualties.forEach((match, index) => {
+    const card = document.createElement("div");
+    card.className = "reveal-casualty";
+    card.style.setProperty("--casualty-index", String(index));
+    const name = document.createElement("strong");
+    name.textContent = match[1].trim();
+    card.append(name);
+    const roleName = match[2].trim();
+    if (mafiaRoles.has(roleName)) {
+      const role = document.createElement("span");
+      role.className = "reveal-mafia-role";
+      role.textContent = `MAFIA · ${roleName}`;
+      card.append(role);
+      card.classList.add("reveal-mafia-casualty");
+    } else {
+      const faction = document.createElement("span");
+      faction.className = "reveal-hidden-role";
+      faction.textContent = "ROLE UNREVEALED";
+      card.append(faction);
+    }
+    els.revealCasualties?.append(card);
+    copy = copy.replace(match[0], "").trim();
+  });
+  const doctorMessage = /The Doctor saved .+? from an attack\./;
+  const saved = text.match(doctorMessage)?.[0];
+  if (saved) {
+    const save = document.createElement("div");
+    save.className = "reveal-save-note";
+    save.textContent = `✚ ${saved}`;
+    els.revealCasualties?.append(save);
+    copy = copy.replace(saved, "").trim();
+  }
+  if (!casualties.length && /no one died/i.test(text)) {
+    els.revealTitle.textContent = "NOBODY DIED LAST NIGHT";
+    copy = copy.replace(/No one died during the night\.?/i, "").trim();
+  }
+  els.revealCopy.textContent = copy || (casualties.length ? "The town wakes to discover the night's losses." : "The town wakes. The day begins soon.");
+  els.revealCasualties?.classList.toggle("has-casualties", casualties.length > 0);
+}
 function renderGameplay(data) {
   const game = data.game;
   if (data.room?.status === "lobby") { els.gameplay.classList.add("hidden"); document.body.dataset.phase = "lobby"; return; }
   if (!game) { els.gameplay.classList.add("hidden"); return; }
   els.gameplay.classList.remove("hidden");
   const phase = game.phase, alive = data.self_alive !== false, players = data.players || [], isHost = currentUserId === data.room.host_user_id;
-  const dawnCutscene = phase === "day" && Date.now() < new Date(game.phase_started_at).getTime();
-  if (lastRenderedPhase === "night" && phase === "day") { lastRevealText = game.last_result || ""; els.revealTitle.textContent = "DAWN BREAKS"; els.revealCopy.textContent = game.last_result || "The night has ended."; els.revealBanner.classList.remove("reveal-show"); void els.revealBanner.offsetWidth; els.revealBanner.classList.add("reveal-show"); }
+  const phaseStartMs = game.phase_started_at ? new Date(game.phase_started_at).getTime() : 0;
+  const dawnCutscene = phase === "day" && Number.isFinite(phaseStartMs) && phaseStartMs > Date.now();
+  const isNewDawn = lastRenderedPhase === "night" && phase === "day";
+  // The server includes phase_started_at in its state payload. Render the cutscene even if
+  // a player refreshes mid-reveal or misses the exact night-to-day polling tick.
+  if ((isNewDawn || dawnCutscene) && game.last_result) {
+    if (lastRevealText !== game.last_result || !els.revealBanner.classList.contains("reveal-show")) {
+      lastRevealText = game.last_result;
+      els.revealTitle.textContent = "DAWN BREAKS";
+      renderRevealReport(game.last_result);
+      els.revealBanner.classList.remove("reveal-show");
+      void els.revealBanner.offsetWidth;
+      els.revealBanner.classList.add("reveal-show");
+    }
+  }
   lastRenderedPhase = phase;
   els.gameplay.classList.toggle("dawn-cutscene", dawnCutscene);
   els.phaseTitle.textContent = phase === "finished" ? `${game.winner || "Game"} wins` : `${phase === "night" ? "Night" : "Day"} ${game.round_number}`;
   document.body.dataset.phase = phase; document.body.classList.toggle("dawn-cutscene-active", dawnCutscene); els.phaseEyebrow.textContent = dawnCutscene ? "DAWN · THE NIGHT'S TOLL" : phase === "day" ? "MORNING · DISCUSSION OPEN" : phase === "night" ? "NIGHTFALL · CHOOSE CAREFULLY" : "MATCH COMPLETE";
   els.phaseTimer.classList.toggle("hidden", phase === "finished" || dawnCutscene);
-  if (!dawnCutscene && game.last_result && game.last_result !== lastRevealText && /died|eliminated|wins|killed|revealed|Mafia members remain/i.test(game.last_result)) { lastRevealText = game.last_result; els.revealTitle.textContent = phase === "day" ? "DAWN BREAKS" : game.winner ? `${game.winner.toUpperCase()} VICTORIOUS` : "THE VOTE IS IN"; els.revealCopy.textContent = game.last_result; els.revealBanner.classList.remove("reveal-show"); void els.revealBanner.offsetWidth; els.revealBanner.classList.add("reveal-show"); }
+  if (!dawnCutscene && game.last_result && game.last_result !== lastRevealText && /died|eliminated|wins|killed|revealed|Mafia members remain/i.test(game.last_result)) { lastRevealText = game.last_result; els.revealTitle.textContent = phase === "day" ? "DAWN BREAKS" : game.winner ? `${game.winner.toUpperCase()} VICTORIOUS` : "THE VOTE IS IN"; renderRevealReport(game.last_result); els.revealBanner.classList.remove("reveal-show"); void els.revealBanner.offsetWidth; els.revealBanner.classList.add("reveal-show"); }
   els.aliveCount.textContent = `Alive: ${game.living_players ?? players.filter(p => p.is_alive !== false).length}`;
-  els.roundResult.textContent = game.last_result || "";
+  els.roundResult.textContent = (phase === "day" && /died overnight\. Role:/i.test(game.last_result || "")) ? "The dawn report is shown above. Only Mafia identities are revealed." : (game.last_result || "");
   els.privateResult.textContent = data.private_result || ""; els.privateResult.classList.toggle("hidden", !data.private_result);
   const role = data.self_role;
   const action = roleAction(role, alive, phase, game);
